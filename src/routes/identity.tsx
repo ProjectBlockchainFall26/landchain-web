@@ -6,8 +6,7 @@ import { Mono, Pill } from "@/components/lc/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { landchain, useMe } from "@/lib/landchain/store";
-import { hashCard } from "@/lib/landchain/engine";
+import { hashCard, landchain, MODE, setMyName, useMe } from "@/lib/landchain/store";
 
 export const Route = createFileRoute("/identity")({
   head: () => ({
@@ -24,6 +23,8 @@ export const Route = createFileRoute("/identity")({
 function Identity() {
   const { me } = useMe();
   const [card, setCard] = useState("");
+  const [name, setName] = useState("");
+  const unnamed = MODE === "chain" && me.kind === "citizen" && me.name.startsWith("Citizen ");
   const [cit, setCit] = useState<"citizen" | "non-citizen">("citizen");
   const valid = /^GHA-\d{9}-\d$/i.test(card.trim());
   const tone = me.identity === "verified" ? "ok" : me.identity === "pending" ? "warn" : me.identity === "rejected" ? "bad" : "neutral";
@@ -42,10 +43,16 @@ function Identity() {
           : (
             <form className="mt-5 space-y-4" onSubmit={async (e) => {
               e.preventDefault();
+              if (unnamed && name.trim()) setMyName(name);
               const hash = hashCard(card);
               const r = await landchain.submitIdentity(hash, cit);
               if (r.ok) setCard("");
             }}>
+              {unnamed && (
+                <label className="block text-sm">Your name
+                  <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="Efua Mensah" />
+                  <span className="mt-1 block text-xs text-muted-foreground">Kept on this device only. Names never go on the blockchain.</span></label>
+              )}
               <label className="block text-sm">Ghana Card number
                 <Input className="mt-1" value={card} onChange={(e) => setCard(e.target.value)} placeholder="GHA-123456789-0" autoComplete="off" /></label>
               <p className="text-xs text-muted-foreground">It's hashed in your browser before anything is sent. The number is never stored or shown again.</p>

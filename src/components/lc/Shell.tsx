@@ -4,7 +4,8 @@ import {
   Activity, Bell, Check, ChevronDown, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, ShieldCheck, User, Wallet, X, LandPlot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMe, useChain, switchAccount, resetDemo, signOut } from "@/lib/landchain/store";
+import { useMe, useChain, switchAccount, resetDemo, signOut, connectWallet, reloadChain, MODE } from "@/lib/landchain/store";
+import { hasMetaMask } from "@/lib/landchain/chain/client";
 import { getParcel } from "@/lib/landchain/engine";
 import { fmtDate, blockNo } from "@/lib/landchain/format";
 import { pendingCountFor } from "@/lib/landchain/queue";
@@ -69,14 +70,31 @@ function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onTo
           </div>
         ))}
       </nav>
-      {!collapsed && (
+      {!collapsed && (MODE === "chain" ? <ChainCard /> : (
         <div className="m-3 rounded-xl border p-3 text-xs">
           <div className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ok" /><span className="font-medium">Demo chain</span><span className="text-muted-foreground">· block {blockNo(s.block)}</span></div>
           <p className="mt-2 text-muted-foreground">Contracts run in your browser with the same rules as the Solidity code.</p>
           <button onClick={resetDemo} className="mt-3 font-medium text-primary hover:underline">Reset demo data</button>
           <p className="sr-only">Signed in as {me.name}</p>
         </div>
-      )}
+      ))}
+    </div>
+  );
+}
+
+/** Chain mode: which chain, its latest block, and whether the contracts can be reached. */
+function ChainCard() {
+  const { state: s, status } = useChain();
+  const dot = status.kind === "ok" ? "bg-ok" : status.kind === "error" ? "bg-bad" : "bg-muted-foreground";
+  const name = status.kind === "demo" ? "Demo chain" : status.name;
+  return (
+    <div className="m-3 rounded-xl border p-3 text-xs">
+      <div className="flex items-center gap-1.5"><span className={cn("size-2 rounded-full", dot)} /><span className="font-medium">{name}</span>
+        {status.kind === "ok" && <span className="text-muted-foreground">· block {blockNo(s.block)}</span>}</div>
+      {status.kind === "ok" && <p className="mt-2 text-muted-foreground">Live LandChain contracts. Every action is a real transaction.</p>}
+      {status.kind === "loading" && <p className="mt-2 text-muted-foreground">Reading the contracts…</p>}
+      {status.kind === "error" && <p className="mt-2 text-bad">{status.error}</p>}
+      <button onClick={() => void reloadChain()} className="mt-3 font-medium text-primary hover:underline">Reload from chain</button>
     </div>
   );
 }
@@ -123,6 +141,7 @@ function AccountSwitcher() {
           </div>
         ))}
         <DropdownMenuSeparator />
+        {MODE === "chain" && hasMetaMask() && <DropdownMenuItem onClick={() => void connectWallet()}>Connect MetaMask</DropdownMenuItem>}
         <DropdownMenuItem onClick={() => { signOut(); navigate({ to: "/login", replace: true }); }} className="text-bad">Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

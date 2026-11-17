@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "contracts:sync": "node scripts/sync-contracts.mjs",
+    "test:e2e": "LANDCHAIN_E2E=1 vitest run src/test/chain.e2e.test.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -68,6 +70,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
+    "web3": "^4.16.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

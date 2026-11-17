@@ -6,6 +6,7 @@ export type IdentityStatus = "none" | "pending" | "verified" | "rejected";
 export interface Account {
   id: string; // public ID
   name: string;
+  address?: string | undefined; // wallet address (chain mode)
   kind: "citizen" | "officer" | "public";
   roles: Role[];
   identity: IdentityStatus;
@@ -21,6 +22,7 @@ export interface Doc { type: string; name: string; hash: string }
 
 export interface Parcel {
   id: string;
+  recordId?: number | undefined; // TitleRegistry record id (chain mode)
   token?: number | undefined;
   titleNo?: number | undefined;
   interest: Interest;
