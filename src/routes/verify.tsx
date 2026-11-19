@@ -6,7 +6,8 @@ import { Card, Mono, StatusPill, Td, Th } from "@/components/lc/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMe } from "@/lib/landchain/store";
-import { account, getParcel } from "@/lib/landchain/engine";
+import { getParcel } from "@/lib/landchain/engine";
+import { shownName } from "@/lib/landchain/privacy";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/verify")({
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/verify")({
 });
 
 function Verify() {
-  const { s } = useMe();
+  const { s, me } = useMe();
   const [q, setQ] = useState("");
   const navigate = useNavigate();
   const titles = s.parcels.filter((p) => p.status !== "rejected");
@@ -31,7 +32,7 @@ function Verify() {
       <div className="mb-5 rounded-xl border bg-card p-6">
         <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-lg bg-ok-soft text-ok"><ShieldCheck className="size-5" /></span>
           <div><h2 className="text-xl font-semibold">Check any title, free</h2>
-            <p className="text-sm text-muted-foreground">Anyone can read the register straight from the blockchain: no wallet, no fees. You see the owner, the boundary and every change ever made, but you can't edit any of it.</p></div></div>
+            <p className="text-sm text-muted-foreground">Anyone can read the register straight from the blockchain: no wallet, no fees. You see the owner's public ID, the boundary and every change ever made, but you can't edit any of it. Names and documents stay private; you can send the owner an enquiry from the title page.</p></div></div>
         <form className="mt-4 flex max-w-lg gap-2" onSubmit={(e) => {
           e.preventDefault();
           const p = getParcel(s, q);
@@ -47,7 +48,7 @@ function Verify() {
             <tr key={p.id} className="border-b last:border-0">
               <Td><div className="font-medium">{p.id}</div><div className="text-xs text-muted-foreground">{p.titleNo ? `GLT #${p.titleNo}` : "No title yet"}</div></Td>
               <Td><StatusPill status={p.status} /></Td>
-              <Td>{account(s, p.owner)?.name ?? ""} <Mono className="text-muted-foreground">{p.owner}</Mono></Td><Td>{p.acres} ac</Td><Td>{p.owners.length}</Td>
+              <Td>{shownName(s, me, p.owner) !== p.owner && <>{shownName(s, me, p.owner)} </>}<Mono className="text-muted-foreground">{p.owner}</Mono></Td><Td>{p.acres} ac</Td><Td>{p.owners.length}</Td>
               <Td className="text-right"><Button size="sm" variant="outline" asChild><Link to="/title/$parcelId" params={{ parcelId: p.id }}>View record</Link></Button></Td>
             </tr>))}</tbody></table></div>
       </Card>

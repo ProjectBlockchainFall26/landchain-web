@@ -2,12 +2,15 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Shell } from "@/components/lc/Shell";
 import { ParcelMap } from "@/components/lc/ParcelMap";
+import { FeeRecorder } from "@/components/lc/FeeRecorder";
+import { openFile } from "@/lib/landchain/vault";
+import { toast } from "sonner";
 import { Card, Empty, Mono, Td, Th } from "@/components/lc/ui";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { landchain, useMe } from "@/lib/landchain/store";
-import { account } from "@/lib/landchain/engine";
+import { account, isFeePaid } from "@/lib/landchain/engine";
 import { queueItems } from "@/lib/landchain/queue";
 import { fmtDate } from "@/lib/landchain/format";
 import type { Application, TransferRequest } from "@/lib/landchain/types";
@@ -91,10 +94,11 @@ function ApplicationDialog({ app: initial, onClose }: { app: Application; onClos
   const app = s.applications.find((a) => a.id === initial.id) ?? initial;
   const p = s.parcels.find((x) => x.id === app.parcelId)!;
   const canAct = app.decision === "waiting" && me.roles.includes("Registrar");
+  const feesReady = isFeePaid(s, p.id, "Stamp duty") && isFeePaid(s, p.id, "First registration");
   const [reason, setReason] = useState("");
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{p.id} · {p.acres} acres</DialogTitle>
           <DialogDescription>Owner <Mono>{app.applicant}</Mono> ({account(s, app.applicant)?.name}) · {p.interest} · {p.holder}</DialogDescription>
@@ -103,21 +107,29 @@ function ApplicationDialog({ app: initial, onClose }: { app: Application; onClos
           <div className="h-64"><ParcelMap parcels={s.parcels} focusId={p.id} defaultSatellite showToggle="dropdown" className="min-h-0" /></div>
           <div className="space-y-3 text-sm">
             <div><span className="text-muted-foreground">Location</span> · {p.location}</div>
+            <div><span className="text-muted-foreground">Plan number</span> · <Mono>{p.planNumber}</Mono>{p.gpsAddress && <> · GPS <Mono>{p.gpsAddress}</Mono></>}</div>
             <div><span className="text-muted-foreground">Boundary</span> · {p.pillars.length} corner pillars</div>
             <div className="space-y-1 pt-2">
               <div className="font-medium">Documents (hashes on chain)</div>
               {p.docs.length === 0 && <p className="text-muted-foreground">No documents uploaded.</p>}
-              {p.docs.map((d) => <div key={d.hash} className="text-xs">{d.type}: {d.name}<br /><Mono className="text-muted-foreground">{d.hash.slice(0, 30)}…</Mono></div>)}
+              {p.docs.map((d) => (
+                <div key={d.hash} className="flex items-center justify-between gap-2 text-xs">
+                  <span>{d.type}<br /><Mono className="text-muted-foreground">{d.hash.slice(0, 26)}…</Mono></span>
+                  <Button size="sm" variant="ghost" onClick={async () => { if (!(await openFile(d.hash))) toast.info("File not in this device's vault", { description: "Seeded parcels have fingerprints only." }); }}>Open</Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+        {app.decision === "waiting" && <div className="border-t pt-3"><FeeRecorder parcel={p} kinds={["Official search", "Stamp duty", "First registration"]} /></div>}
         {app.decision !== "waiting" ? <p className="text-sm text-muted-foreground">Already {app.decision}.</p> : canAct ? (
           <div className="space-y-2 border-t pt-3">
+            {!feesReady && <p className="text-sm text-warn">Record the stamp duty and registration fee receipts first. The contract refuses approval without them.</p>}
             <p className="text-sm">Approving mints title NFT <b>GLT</b> to the owner. After that, this record can't be edited.</p>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required to reject)" />
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={!reason.trim()} onClick={async () => { const r = await landchain.rejectApplication(app.id, reason); if (r.ok) onClose(); }}>Reject</Button>
-              <Button onClick={async () => { const r = await landchain.approveApplication(app.id); if (r.ok) onClose(); }}>Approve & register</Button>
+              <Button disabled={!feesReady} onClick={async () => { const r = await landchain.approveApplication(app.id); if (r.ok) onClose(); }}>Approve & register</Button>
             </div>
           </div>
         ) : <p className="border-t pt-3 text-sm text-muted-foreground">Waiting on the <b>registrar</b>. Switch account to act.</p>}
@@ -135,7 +147,7 @@ function TransferDialog({ trf: initial, onClose }: { trf: TransferRequest; onClo
   const who = (id: string) => <>{account(s, id)?.name ?? id} <Mono className="text-muted-foreground">{id}</Mono></>;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Transfer {p.id}</DialogTitle>
           <DialogDescription>Title GLT #{p.titleNo} · {p.acres} acres · {p.holder}</DialogDescription>
@@ -146,12 +158,13 @@ function TransferDialog({ trf: initial, onClose }: { trf: TransferRequest; onClo
           <div><span className="text-muted-foreground">Requested</span> · {fmtDate(t.requestedAt)}</div>
           <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">Check the signed indenture before approving. Approving moves the title NFT to the new owner and adds them to the on-chain owner history.</p>
         </div>
+        {t.decision === "waiting" && <div className="border-t pt-3"><FeeRecorder parcel={p} kinds={["Transfer"]} transferId={t.id} /></div>}
         {t.decision !== "waiting" ? <p className="text-sm text-muted-foreground">Already {t.decision}.</p> : canAct ? (
           <div className="space-y-2 border-t pt-3">
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required to reject)" />
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={!reason.trim()} onClick={async () => { const r = await landchain.rejectTransfer(t.id, reason); if (r.ok) onClose(); }}>Reject</Button>
-              <Button onClick={async () => { const r = await landchain.approveTransfer(t.id); if (r.ok) onClose(); }}>Approve transfer</Button>
+              <Button disabled={!isFeePaid(s, p.id, "Transfer", t.id)} onClick={async () => { const r = await landchain.approveTransfer(t.id); if (r.ok) onClose(); }}>Approve transfer</Button>
             </div>
           </div>
         ) : <p className="border-t pt-3 text-sm text-muted-foreground">Waiting on the <b>registrar</b>. Switch account to act.</p>}

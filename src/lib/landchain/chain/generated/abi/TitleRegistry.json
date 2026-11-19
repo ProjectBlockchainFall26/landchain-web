@@ -559,6 +559,20 @@
     "constant": true
   },
   {
+    "inputs": [],
+    "name": "feeLedger",
+    "outputs": [
+      {
+        "internalType": "contract IFeeLedger",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -893,6 +907,19 @@
   {
     "inputs": [
       {
+        "internalType": "contract IFeeLedger",
+        "name": "ledger",
+        "type": "address"
+      }
+    ],
+    "name": "setFeeLedger",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "string",
@@ -920,6 +947,16 @@
             "type": "string"
           },
           {
+            "internalType": "string",
+            "name": "planNumber",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "gpsAddress",
+            "type": "string"
+          },
+          {
             "internalType": "uint32",
             "name": "acresX100",
             "type": "uint32"
@@ -939,11 +976,6 @@
               {
                 "internalType": "string",
                 "name": "docType",
-                "type": "string"
-              },
-              {
-                "internalType": "string",
-                "name": "name",
                 "type": "string"
               },
               {
@@ -1124,6 +1156,16 @@
             "type": "string"
           },
           {
+            "internalType": "string",
+            "name": "planNumber",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "gpsAddress",
+            "type": "string"
+          },
+          {
             "internalType": "uint32",
             "name": "acresX100",
             "type": "uint32"
@@ -1203,11 +1245,6 @@
           {
             "internalType": "string",
             "name": "docType",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "name",
             "type": "string"
           },
           {

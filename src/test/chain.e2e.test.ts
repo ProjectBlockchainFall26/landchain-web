@@ -1,5 +1,5 @@
 // End-to-end: drives the real service layer (the same landchain.* calls the screens make) against a
-// running local chain with the LandChain contracts deployed and seeded.
+// running local chain with the LandChain contracts deployed and seeded (identity, registration, fees, transfers).
 //
 //   cd ../landchain-contracts && npm run chain        (terminal 1)
 //   npm run setup:local && cd ../landchain-web-main && npm run contracts:sync
@@ -25,6 +25,9 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
 
   it("reads the seeded register from the chain", () => {
     const s = stateNow();
+    expect(parcel("GA-BRK-0002").planNumber).toMatch(/^SER B/);
+    expect(parcel("GA-BRK-0002").docs.map((d) => d.type)).toEqual(["Site plan", "Indenture", "Search report"]);
+    expect(s.payments.filter((p) => p.parcelId === "GA-BRK-0002").map((p) => p.kind)).toEqual(["Official search", "Stamp duty", "First registration"]);
     expect(s.block).toBeGreaterThan(0);
     expect(parcel("GA-BRK-0002").status).toBe("registered");
     expect(parcel("GA-BRK-0006").status).toBe("transfer_pending");
@@ -61,14 +64,21 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
     as("Efua Mensah");
     const id = `GA-BRK-${String(9000 + (Date.now() % 900)).padStart(4, "0")}`;
     const pillars = makeQuad(-1500 - (Date.now() % 7) * 140, 1100, 3.2, 5);
-    const applied = await landchain.submitApplication({ parcelId: id, interest: "Customary freehold", holder: "Berekuso Stool", region: "Eastern", location: "Berekuso, Eastern Region", pillars, docs: [] });
+    const applied = await landchain.submitApplication({ parcelId: id, interest: "Customary freehold", holder: "Berekuso Stool", region: "Eastern", location: "Berekuso, Eastern Region", planNumber: "SER B9001/26", gpsAddress: "EA-1805-5795", pillars, docs: [{ type: "Site plan", hash: "0x" + "ab".repeat(32) }] });
     expect(applied).toEqual({ ok: true });
     expect(parcel(id).status).toBe("pending");
     expect(parcel(id).acres).toBeCloseTo(areaAcres(pillars), 2);
     const app = stateNow().applications.find((a) => a.parcelId === id)!;
 
     as("Lands Commission");
+    const early = await landchain.approveApplication(app.id);
+    expect(early.error).toContain("Record the stamp duty receipt before approving");
+    const rcpt = `E2E-${Date.now()}`;
+    expect((await landchain.recordPayment(id, "Stamp duty", 1920, `${rcpt}-SD`)).ok).toBe(true);
+    expect((await landchain.recordPayment(id, "First registration", 4712, `${rcpt}-REG`)).ok).toBe(true);
+    expect((await landchain.recordPayment(id, "First registration", 4712, `${rcpt}-REG`)).error).toContain("already been recorded");
     expect((await landchain.approveApplication(app.id)).ok).toBe(true);
+    expect(stateNow().payments.filter((p) => p.parcelId === id).map((p) => p.amount)).toEqual([1920, 4712]);
     expect(parcel(id).status).toBe("registered");
     expect(parcel(id).titleNo).toBeGreaterThan(0);
     expect(parcel(id).owners).toEqual([efua.id]);
@@ -80,6 +90,8 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
 
     as("Lands Commission");
     const trf = stateNow().transfers.find((t) => t.parcelId === id && t.decision === "waiting")!;
+    expect((await landchain.approveTransfer(trf.id)).error).toContain("Record the transfer fee before approving");
+    expect((await landchain.recordPayment(id, "Transfer", 3892, `${rcpt}-TRF`)).ok).toBe(true);
     expect((await landchain.approveTransfer(trf.id)).ok).toBe(true);
     expect(parcel(id).owner).toBe(byName("Ama Owusu").id);
     expect(parcel(id).owners).toEqual([efua.id, byName("Ama Owusu").id]);
@@ -90,6 +102,7 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
   it("the registrar settles the seeded transfer request", async () => {
     as("Lands Commission");
     const t = stateNow().transfers.find((x) => x.parcelId === "GA-BRK-0006" && x.decision === "waiting")!;
+    expect((await landchain.recordPayment("GA-BRK-0006", "Transfer", 8757, `E2E-${Date.now()}-0006`)).ok).toBe(true);
     expect((await landchain.approveTransfer(t.id)).ok).toBe(true);
     expect(parcel("GA-BRK-0006").owner).toBe(byName("Kofi Mensah").id);
   }, 60_000);

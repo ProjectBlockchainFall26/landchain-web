@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Activity, Bell, Check, ChevronDown, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, ShieldCheck, User, X, LandPlot,
+  Activity, Bell, Check, ChevronDown, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, ShieldCheck, User, X, LandPlot, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMe, useChain, switchAccount, signOut, connectWallet, reloadChain } from "@/lib/landchain/store";
@@ -9,6 +9,7 @@ import { hasMetaMask } from "@/lib/landchain/chain/client";
 import { getParcel } from "@/lib/landchain/engine";
 import { fmtDate, blockNo } from "@/lib/landchain/format";
 import { pendingCountFor } from "@/lib/landchain/queue";
+import { useEnquiries } from "@/lib/landchain/enquiries";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ const NAV = [
   { group: "Records", items: [
     { to: "/verify", label: "Verify a Title", icon: ShieldCheck },
     { to: "/activity", label: "Activity Log", icon: Activity },
+    { to: "/assumptions", label: "Assumptions", icon: Info },
   ] },
 ] as const;
 
@@ -144,7 +146,9 @@ function AccountSwitcher() {
 
 function Notifications() {
   const { s, me } = useMe();
-  const mine = s.notifications.filter((n) => n.to === me.id || me.roles.some((r) => n.to === `role:${r}`)).slice(0, 8);
+  const enquiries = useEnquiries().filter((e) => e.to === me.id && e.status === "new")
+    .map((e) => ({ to: me.id, text: `New enquiry about ${e.parcelId} from ${e.name}. Open the title to read it.`, at: e.at }));
+  const mine = [...enquiries, ...s.notifications.filter((n) => n.to === me.id || me.roles.some((r) => n.to === `role:${r}`))].slice(0, 8);
   const attention = pendingCountFor(s, me) > 0 || mine.length > 0;
   return (
     <DropdownMenu>
@@ -191,7 +195,7 @@ export function Shell({ title, children, full }: { title: string; children: Reac
   const { ready, signedIn } = useChain();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
-  const open = path.startsWith("/verify") || path.startsWith("/title/");
+  const open = path.startsWith("/verify") || path.startsWith("/title/") || path.startsWith("/assumptions");
   useEffect(() => {
     if (ready && !signedIn && !open) navigate({ to: "/login", replace: true });
   }, [ready, signedIn, open, navigate]);

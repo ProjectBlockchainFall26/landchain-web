@@ -18,7 +18,8 @@ export interface Account {
 export type ParcelStatus = "pending" | "registered" | "transfer_pending" | "rejected";
 export type Interest = "Allodial" | "Customary freehold" | "Common-law freehold" | "Leasehold";
 
-export interface Doc { type: string; name: string; hash: string }
+/** On chain: type + SHA-256 fingerprint only. The file and its name live in the Lands Commission's vault. */
+export interface Doc { type: string; hash: string }
 
 export interface Parcel {
   id: string;
@@ -28,6 +29,8 @@ export interface Parcel {
   holder: string;
   region: string;
   location: string;
+  planNumber: string; // regional / plan number from the approved site plan
+  gpsAddress: string; // GhanaPostGPS digital address
   acres: number;
   status: ParcelStatus;
   owner: string; // public ID
@@ -63,6 +66,21 @@ export interface TransferRequest {
   reason?: string | undefined;
 }
 
+export type FeeKind = "Official search" | "Stamp duty" | "First registration" | "Transfer";
+export interface Payment {
+  id: string; // PAY-n
+  parcelId: string;
+  kind: FeeKind;
+  amount: number; // GH¢
+  receiptHash: string;
+  payer: string;
+  recordedBy: string;
+  at: number;
+  block: number;
+  tx: string;
+  transferId?: string | undefined;
+}
+
 export type HistoryType = "Application" | "Registration" | "Transfer requested" | "Transfer" | "Transfer rejected" | "Transfer cancelled" | "Rejected";
 export interface HistoryEvent { parcelId: string; type: HistoryType; text: string; at: number; block: number; tx: string }
 
@@ -86,6 +104,7 @@ export interface ChainState {
   parcels: Parcel[];
   applications: Application[];
   transfers: TransferRequest[];
+  payments: Payment[];
   history: HistoryEvent[];
   txs: Tx[];
   notifications: Notification[];

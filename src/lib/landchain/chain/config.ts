@@ -4,7 +4,7 @@
 import deployments from "./generated/deployments.json";
 import demoAccounts from "./generated/demo-accounts.json";
 
-export type ContractName = "LandAccessControl" | "IdentityRegistry" | "TitleRegistry";
+export type ContractName = "LandAccessControl" | "IdentityRegistry" | "TitleRegistry" | "FeeLedger";
 
 interface Deployment { network: string; startBlock: number; deployedAt: string; contracts: Record<ContractName, string> }
 

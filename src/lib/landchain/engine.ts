@@ -1,7 +1,7 @@
 // Pure helpers over the ChainState that snapshot.ts reads from the contracts. No rules live here:
 // the Solidity contracts enforce them. These only look things up and pre-check the boundary drawing.
 import { insideGhana, polygonsOverlap, type LatLng } from "./geo";
-import type { Account, ChainState, Interest, Role } from "./types";
+import type { Account, ChainState, Interest, Payment, Role } from "./types";
 
 export function fakeHash(input: string): string {
   let h1 = 0x811c9dc5, h2 = 0x1234567;
@@ -27,7 +27,8 @@ export function hasRole(s: ChainState, id: string, role: Role) {
 
 export interface ApplicationInput {
   parcelId: string; interest: Interest; holder: string; region: string; location: string;
-  pillars: LatLng[]; docs: { type: string; name: string; hash: string }[];
+  planNumber: string; gpsAddress: string;
+  pillars: LatLng[]; docs: { type: string; hash: string }[];
 }
 
 /** Checked in the browser before sending. The contract checks id format, duplicates and Ghana's box itself. */
@@ -50,4 +51,12 @@ export function openTransfer(s: ChainState, parcelId: string) {
 }
 export function applicationFor(s: ChainState, parcelId: string) {
   return [...s.applications].reverse().find((a) => a.parcelId === parcelId);
+}
+
+/** Fees recorded for a parcel; for a transfer, only those paid for that transfer request. */
+export function paymentsFor(s: ChainState, parcelId: string) {
+  return s.payments.filter((p) => p.parcelId === parcelId);
+}
+export function isFeePaid(s: ChainState, parcelId: string, kind: Payment["kind"], transferId?: string) {
+  return s.payments.some((p) => p.parcelId === parcelId && p.kind === kind && (kind !== "Transfer" || p.transferId === transferId));
 }

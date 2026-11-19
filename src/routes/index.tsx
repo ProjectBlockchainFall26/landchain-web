@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMe } from "@/lib/landchain/store";
 import { STATUS_TONE } from "@/lib/landchain/format";
-import { account } from "@/lib/landchain/engine";
+import { shownName } from "@/lib/landchain/privacy";
 import type { ParcelStatus } from "@/lib/landchain/types";
 import { toast } from "sonner";
 
@@ -83,7 +83,7 @@ function LandMap() {
                     </div>
                     <div className="flex flex-wrap gap-2"><StatusPill status={sel.status} /><Pill>{sel.interest}</Pill></div>
                     <dl className="space-y-2 pt-2 text-sm">
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Owner</dt><dd>{account(s, sel.owner)?.name ?? <Mono>{sel.owner}</Mono>}</dd></div>
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Owner</dt><dd>{shownName(s, me, sel.owner) === sel.owner ? <Mono>{sel.owner}</Mono> : shownName(s, me, sel.owner)}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">Allodial holder</dt><dd>{sel.holder}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">Location</dt><dd>Berekuso, {sel.region}</dd></div>
                     </dl>

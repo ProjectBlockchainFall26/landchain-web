@@ -4,22 +4,25 @@
 // For a large chain this belongs in the backend's event index (Postgres); the browser version is fine for
 // a class-sized chain and keeps the chain the single source of truth.
 import type { EventLog } from "web3";
-import type { Account, Application, ChainState, Decision, HistoryEvent, Interest, Notification, Parcel, ParcelStatus, Role, TransferRequest, Tx } from "../types";
+import type { Account, Application, ChainState, Decision, HistoryEvent, Interest, Notification, Parcel, ParcelStatus, Payment, Role, TransferRequest, Tx } from "../types";
+import { cedi, FEE_KINDS } from "../fees";
 import { DEMO_LABELS, deployment, fromMicro } from "./config";
 import { CONTRACT_NAMES, getLocalAccounts, metaMaskAddress, publicIdOf, reader, view } from "./client";
 
 // Shapes of the contract structs as web3 returns them (uint -> bigint).
 interface RolesOut { registrar: boolean; idOfficer: boolean }
 interface ProfileOut { status: bigint; citizen: boolean; cardHash: string }
-interface ParcelOut { parcelId: string; interest: bigint; holder: string; region: string; location: string; acresX100: bigint; status: bigint; owner: string; tokenId: bigint; registeredAt: bigint; updatedAt: bigint }
+interface ParcelOut { parcelId: string; interest: bigint; holder: string; region: string; location: string; planNumber: string; gpsAddress: string; acresX100: bigint; status: bigint; owner: string; tokenId: bigint; registeredAt: bigint; updatedAt: bigint }
 interface BoundaryOut { lats: bigint[]; lngs: bigint[] }
-interface DocOut { docType: string; name: string; hash: string }
+interface DocOut { docType: string; hash: string }
+interface PaymentOut { recordId: bigint; kind: bigint; amountPesewas: bigint; receiptHash: string; payer: string; recordedBy: string; at: bigint; transferId: bigint }
 interface AppOut { recordId: bigint; applicant: string; createdAt: bigint; decision: bigint; decidedBy: string; decidedAt: bigint; reason: string }
 interface TransferOut { recordId: bigint; from: string; to: string; requestedAt: bigint; decision: bigint; decidedBy: string; decidedAt: bigint; reason: string }
 /** Every event field the snapshot reads (each event uses a subset). */
 interface Ev {
   who: string; by: string; cardHash: string; citizen: boolean; appId: bigint; recordId: bigint; parcelId: string;
   applicant: string; pillars: bigint; reason: string; tokenId: bigint; owner: string; transferId: bigint; from: string; to: string;
+  paymentId: bigint; kind: bigint; amountPesewas: bigint;
 }
 
 const INTERESTS: Interest[] = ["Allodial", "Customary freehold", "Common-law freehold", "Leasehold"];
@@ -100,12 +103,13 @@ export async function loadChainState(): Promise<ChainState> {
     const parcel: Parcel = {
       id: p.parcelId, recordId, titleNo: tokenId || undefined,
       interest: INTERESTS[n(p.interest)]!, holder: p.holder, region: p.region, location: p.location,
+      planNumber: p.planNumber, gpsAddress: p.gpsAddress,
       acres: n(p.acresX100) / 100, status: STATUSES[n(p.status)]!, owner: idOf(p.owner),
       owners: owners.map(idOf),
       pillars: b.lats.map((lat, k) => [fromMicro(lat), fromMicro(b.lngs[k]!)] as [number, number]),
       registeredAt: p.registeredAt ? ms(p.registeredAt) || undefined : undefined,
       updatedAt: ms(p.updatedAt),
-      docs: docs.map((d) => ({ type: d.docType, name: d.name, hash: d.hash })),
+      docs: docs.map((d) => ({ type: d.docType, hash: d.hash })),
     };
     return parcel;
   }));
@@ -136,6 +140,10 @@ export async function loadChainState(): Promise<ChainState> {
     };
   }));
 
+  // ---------- fee receipts (FeeLedger) ----------
+  const paymentCount = n(await view<bigint>(c, "FeeLedger", "paymentCount"));
+  const rawPayments = await Promise.all(Array.from({ length: paymentCount }, (_, i) => view<PaymentOut>(c, "FeeLedger", "getPayment", i + 1)));
+
   // ---------- events: history, activity log, notifications ----------
   const fromBlock = deployment?.startBlock ?? 0;
   const events = (await Promise.all(CONTRACT_NAMES.map(async (name) =>
@@ -151,6 +159,7 @@ export async function loadChainState(): Promise<ChainState> {
   const txs: Tx[] = [];
   const notifications: Notification[] = [];
   const pid = (recordId: bigint) => byRecord.get(n(recordId))?.id ?? `#${n(recordId)}`;
+  const paymentMeta = new Map<number, { block: number; at: number; tx: string }>();
 
   for (const { contract, e } of events) {
     const v = e.returnValues as unknown as Ev;
@@ -214,6 +223,15 @@ export async function loadChainState(): Promise<ChainState> {
         if (t) note(t.from, `Transfer of ${pid(v.recordId)} was rejected: ${v.reason}`);
         break;
       }
+      case "FeeLedger.PaymentRecorded": {
+        const kind = FEE_KINDS[n(v.kind)]!;
+        // The amount is public on chain; the app only shows it to the owner and the Lands Commission.
+        txs.push({ hash, contract, fn: "recordPayment", args: `"${pid(v.recordId)}", ${kind}`, from: idOf(v.by), block, at, status: "Success" });
+        const raw = rawPayments[n(v.paymentId) - 1];
+        if (raw) paymentMeta.set(n(v.paymentId), { block, at, tx: hash });
+        note(idOf(raw?.payer ?? ""), `${kind} receipt of ${cedi(n(v.amountPesewas) / 100)} recorded for ${pid(v.recordId)}`);
+        break;
+      }
       case "TitleRegistry.TransferCancelled": {
         const t = transfers[n(v.transferId) - 1];
         if (t) txs.push({ hash, contract, fn: "cancelTransfer", args: `TRF-${n(v.transferId)}`, from: t.from, block, at, status: "Success" });
@@ -223,6 +241,15 @@ export async function loadChainState(): Promise<ChainState> {
     }
   }
 
+  const payments: Payment[] = rawPayments.map((p, i) => {
+    const meta = paymentMeta.get(i + 1);
+    return {
+      id: `PAY-${i + 1}`, parcelId: pid(p.recordId), kind: FEE_KINDS[n(p.kind)]!, amount: n(p.amountPesewas) / 100,
+      receiptHash: p.receiptHash, payer: idOf(p.payer), recordedBy: idOf(p.recordedBy), at: ms(p.at),
+      block: meta?.block ?? 0, tx: meta?.tx ?? "", transferId: n(p.transferId) ? `TRF-${n(p.transferId)}` : undefined,
+    };
+  }).filter((p) => isCurrent(rawPayments[Number(p.id.slice(4)) - 1]!.recordId));
+
   const allTxs = [...txs, ...localReverts()].sort((a, b) => b.block - a.block || b.at - a.at);
   return {
     block: blockNow,
@@ -230,6 +257,7 @@ export async function loadChainState(): Promise<ChainState> {
     parcels,
     applications: visibleApps,
     transfers: transfers.filter((t) => parcels.some((p) => p.id === t.parcelId)),
+    payments,
     history,
     txs: allTxs,
     notifications: notifications.reverse(),

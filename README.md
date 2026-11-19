@@ -6,11 +6,11 @@ The app reads and writes the **LandChain smart contracts** ([landchain-contracts
 
 ## Views
 
-- **Citizen:** verify a Ghana Card, register land, track the application, see the on-chain history of a title, request a transfer of ownership.
-- **Lands Commission:** a review queue. The identity officer verifies Ghana Cards; the registrar approves registrations and transfers. Each role can act only on its own items, and the contract enforces it.
-- **Public:** look up and verify any title, read only, no login.
+- **Citizen:** verify a Ghana Card, register land (boundary, plan number, GPS address, documents), track the application, see the on-chain history of a title, request a transfer, see a receipt of every fee and blockchain cost, read enquiries from interested buyers.
+- **Lands Commission:** a review queue. The identity officer verifies Ghana Cards; the registrar opens documents, records fee receipts and approves registrations and transfers. Each role can act only on its own items, and the contract enforces it.
+- **Public:** look up any title, read only, no login. Sees the owner's public ID, status, boundary and history, but not names, documents or fees. Can check a document copy against its on-chain fingerprint and send the owner an enquiry without learning who they are.
 
-Routes live in `src/routes` (`index`, `login`, `parcels`, `register`, `review`, `verify`, `activity`, `identity`, `title.$parcelId`).
+Routes live in `src/routes` (`index`, `login`, `parcels`, `register`, `review`, `verify`, `activity`, `receipt.$parcelId`, `assumptions`, `identity`, `title.$parcelId`).
 
 ## How the blockchain is wired in
 
@@ -23,7 +23,11 @@ src/lib/landchain/store.ts            the only door to the data
    ├─ chain/snapshot.ts               builds the app state from view functions + contract events
    ├─ chain/config.ts                 chain id, RPC, micro-degree coordinates
    ├─ chain/generated/                ABIs, deployed addresses, demo labels (npm run contracts:sync)
-   └─ engine.ts                       lookups + the boundary overlap pre-check
+   ├─ engine.ts                       lookups + the boundary overlap pre-check
+   ├─ privacy.ts                      who may see names, documents and fees
+   ├─ fees.ts                         fee schedule used for suggested amounts (estimates)
+   ├─ vault.ts                        document files, off chain (IndexedDB in the demo; backend later)
+   └─ enquiries.ts                    buyer enquiries, off chain (localStorage in the demo; backend later)
 ```
 
 - **Writes.** Each `landchain.*` call is one contract call. The app first does a free `eth_call`, so a refused

@@ -2,6 +2,7 @@
 // talk to the chain directly. Reads come from the deployed contracts (chain/snapshot.ts); every write is a
 // real transaction (chain/client.ts).
 import { useSyncExternalStore } from "react";
+import Web3 from "web3";
 import { toast } from "sonner";
 import * as E from "./engine";
 import type { ChainState, Tx } from "./types";
@@ -9,6 +10,8 @@ import { chainName, CHAIN_ID, deployment, RPC_URL, toMicro } from "./chain/confi
 import { chainCardHash, connectMetaMask, publicIdOf, reader, RevertError, send } from "./chain/client";
 import { loadChainState, recordRevert, rememberName } from "./chain/snapshot";
 import { areaAcres } from "./geo";
+import { FEE_INDEX } from "./fees";
+import type { FeeKind } from "./types";
 
 const ACCT_KEY = `landchain-account:${CHAIN_ID}`;
 const AUTH_KEY = `landchain-signed-in:${CHAIN_ID}`;
@@ -20,7 +23,7 @@ export type ChainStatus =
 
 const emptyState = (): ChainState => ({
   block: 0, accounts: [{ id: "public", name: "Public visitor", kind: "public", roles: [], identity: "none" }],
-  parcels: [], applications: [], transfers: [], history: [], txs: [], notifications: [],
+  parcels: [], applications: [], transfers: [], payments: [], history: [], txs: [], notifications: [],
 });
 const initialStatus = (): ChainStatus => ({ kind: "loading", rpc: RPC_URL, name: chainName });
 
@@ -204,9 +207,10 @@ export const landchain = {
       if (err) return err;
       const input = {
         parcelId: i.parcelId, interest: INTEREST_INDEX[i.interest], holder: i.holder, region: i.region, location: i.location,
+        planNumber: i.planNumber.trim(), gpsAddress: i.gpsAddress.trim().toUpperCase(),
         acresX100: Math.max(1, Math.round(areaAcres(i.pillars) * 100)),
         lats: i.pillars.map((p) => toMicro(p[0])), lngs: i.pillars.map((p) => toMicro(p[1])),
-        docs: i.docs.map((d) => ({ docType: d.type, name: d.name, hash: d.hash })),
+        docs: i.docs.map((d) => ({ docType: d.type, hash: d.hash })), // file names stay off chain
       };
       return { contract: "TitleRegistry", method: "submitApplication", args: [input], label: `"${i.parcelId}", ${i.pillars.length} pillars` };
     }),
@@ -214,6 +218,16 @@ export const landchain = {
     chainAct("Registered: title NFT minted", () => ({ contract: "TitleRegistry", method: "approveApplication", args: [num(app)], label: app })),
   rejectApplication: (app: string, reason: string) =>
     chainAct("Application rejected", () => ({ contract: "TitleRegistry", method: "rejectApplication", args: [num(app), reason], label: `${app}, "${reason}"` })),
+
+  // FeeLedger: the registrar records an official receipt (amount in GH¢, receipt number hashed)
+  recordPayment: (parcelId: string, kind: FeeKind, amount: number, receiptNo: string) =>
+    chainAct(`${kind} receipt recorded`, (s) => {
+      const p = s.parcels.find((x) => x.id === parcelId);
+      if (!p) return `Parcel ${parcelId} does not exist`;
+      if (!receiptNo.trim()) return "Add the official receipt number";
+      const receiptHash = Web3.utils.keccak256(Web3.utils.utf8ToHex(receiptNo.trim().toUpperCase()));
+      return { contract: "FeeLedger", method: "recordPayment", args: [p.recordId, FEE_INDEX[kind], Math.round(amount * 100), receiptHash], label: `"${parcelId}", ${kind}` };
+    }),
 
   // TitleRegistry: transfer of ownership
   requestTransfer: (parcelId: string, to: string) =>
