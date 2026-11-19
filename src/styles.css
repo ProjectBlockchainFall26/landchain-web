@@ -154,3 +154,10 @@
     font-family: var(--font-sans);
   }
 }
+
+/* Receipts print on white, without the toaster */
+@media print {
+  html, body { background: #fff !important; }
+  [data-sonner-toaster] { display: none !important; }
+  @page { margin: 14mm; }
+}

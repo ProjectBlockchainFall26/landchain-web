@@ -108,20 +108,6 @@
   },
   {
     "inputs": [],
-    "name": "AGENT_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [],
     "name": "DEFAULT_ADMIN_ROLE",
     "outputs": [
       {
@@ -150,49 +136,7 @@
   },
   {
     "inputs": [],
-    "name": "JUDGE_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [],
-    "name": "LAWYER_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [],
     "name": "REGISTRAR_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [],
-    "name": "SURVEYOR_ROLE",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -405,22 +349,7 @@
       },
       {
         "internalType": "bool",
-        "name": "surveyor",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "lawyer",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
         "name": "idOfficer",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "judge",
         "type": "bool"
       }
     ],

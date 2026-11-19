@@ -11,13 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
-import { Route as BalanceRouteImport } from './routes/balance'
+import { Route as AssumptionsRouteImport } from './routes/assumptions'
 import { Route as IdentityRouteImport } from './routes/identity'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParcelsRouteImport } from './routes/parcels'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as ReceiptParcelIdRouteImport } from './routes/receipt.$parcelId'
 import { Route as TitleParcelIdRouteImport } from './routes/title.$parcelId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -30,9 +31,9 @@ const ActivityRoute = ActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BalanceRoute = BalanceRouteImport.update({
-  id: '/balance',
-  path: '/balance',
+const AssumptionsRoute = AssumptionsRouteImport.update({
+  id: '/assumptions',
+  path: '/assumptions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdentityRoute = IdentityRouteImport.update({
@@ -65,6 +66,11 @@ const VerifyRoute = VerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceiptParcelIdRoute = ReceiptParcelIdRouteImport.update({
+  id: '/receipt/$parcelId',
+  path: '/receipt/$parcelId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TitleParcelIdRoute = TitleParcelIdRouteImport.update({
   id: '/title/$parcelId',
   path: '/title/$parcelId',
@@ -74,38 +80,41 @@ const TitleParcelIdRoute = TitleParcelIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
+  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
+  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
+  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
 export interface FileRouteTypes {
@@ -113,50 +122,54 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
-    | '/balance'
+    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
     | '/register'
     | '/review'
     | '/verify'
+    | '/receipt/$parcelId'
     | '/title/$parcelId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/activity'
-    | '/balance'
+    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
     | '/register'
     | '/review'
     | '/verify'
+    | '/receipt/$parcelId'
     | '/title/$parcelId'
   id:
     | '__root__'
     | '/'
     | '/activity'
-    | '/balance'
+    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
     | '/register'
     | '/review'
     | '/verify'
+    | '/receipt/$parcelId'
     | '/title/$parcelId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
-  BalanceRoute: typeof BalanceRoute
+  AssumptionsRoute: typeof AssumptionsRoute
   IdentityRoute: typeof IdentityRoute
   LoginRoute: typeof LoginRoute
   ParcelsRoute: typeof ParcelsRoute
   RegisterRoute: typeof RegisterRoute
   ReviewRoute: typeof ReviewRoute
   VerifyRoute: typeof VerifyRoute
+  ReceiptParcelIdRoute: typeof ReceiptParcelIdRoute
   TitleParcelIdRoute: typeof TitleParcelIdRoute
 }
 
@@ -176,11 +189,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/balance': {
-      id: '/balance'
-      path: '/balance'
-      fullPath: '/balance'
-      preLoaderRoute: typeof BalanceRouteImport
+    '/assumptions': {
+      id: '/assumptions'
+      path: '/assumptions'
+      fullPath: '/assumptions'
+      preLoaderRoute: typeof AssumptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/identity': {
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/receipt/$parcelId': {
+      id: '/receipt/$parcelId'
+      path: '/receipt/$parcelId'
+      fullPath: '/receipt/$parcelId'
+      preLoaderRoute: typeof ReceiptParcelIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/title/$parcelId': {
       id: '/title/$parcelId'
       path: '/title/$parcelId'
@@ -238,13 +258,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
-  BalanceRoute: BalanceRoute,
+  AssumptionsRoute: AssumptionsRoute,
   IdentityRoute: IdentityRoute,
   LoginRoute: LoginRoute,
   ParcelsRoute: ParcelsRoute,
   RegisterRoute: RegisterRoute,
   ReviewRoute: ReviewRoute,
   VerifyRoute: VerifyRoute,
+  ReceiptParcelIdRoute: ReceiptParcelIdRoute,
   TitleParcelIdRoute: TitleParcelIdRoute,
 }
 export const routeTree = rootRouteImport

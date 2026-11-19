@@ -1,42 +1,34 @@
 // Builds the app's ChainState from the deployed contracts: current state from view functions, and the
-// history, activity log and notifications from contract events. Screens read this exactly as they read
-// the demo engine's state, so they don't know (or care) which one is behind them.
+// history, activity log and notifications from contract events.
 //
 // For a large chain this belongs in the backend's event index (Postgres); the browser version is fine for
 // a class-sized chain and keeps the chain the single source of truth.
 import type { EventLog } from "web3";
-import type { Account, Application, ChainState, Dispute, HistoryEvent, Interest, Notification, Parcel, ParcelStatus, Role, Sale, Step, Tx } from "../types";
-import { cedi } from "../format";
-import { DEMO_LABELS, deployment, fromMicro, fromUnits } from "./config";
+import type { Account, Application, ChainState, Decision, HistoryEvent, Interest, Notification, Parcel, ParcelStatus, Payment, Role, TransferRequest, Tx } from "../types";
+import { cedi, FEE_KINDS } from "../fees";
+import { DEMO_LABELS, deployment, fromMicro } from "./config";
 import { CONTRACT_NAMES, getLocalAccounts, metaMaskAddress, publicIdOf, reader, view } from "./client";
 
 // Shapes of the contract structs as web3 returns them (uint -> bigint).
-interface RolesOut { registrar: boolean; surveyor: boolean; lawyer: boolean; idOfficer: boolean; judge: boolean }
+interface RolesOut { registrar: boolean; idOfficer: boolean }
 interface ProfileOut { status: bigint; citizen: boolean; cardHash: string }
-interface ParcelOut { parcelId: string; interest: bigint; holder: string; region: string; location: string; acresX100: bigint; status: bigint; owner: string; tokenId: bigint; updatedAt: bigint }
+interface ParcelOut { parcelId: string; interest: bigint; holder: string; region: string; location: string; planNumber: string; gpsAddress: string; acresX100: bigint; status: bigint; owner: string; tokenId: bigint; registeredAt: bigint; updatedAt: bigint }
 interface BoundaryOut { lats: bigint[]; lngs: bigint[] }
-interface DocOut { docType: string; name: string; hash: string }
-interface ListingOut { price: bigint; listedAt: bigint }
-interface StepOut { status: bigint; by: string; at: bigint; reason: string }
-interface AppOut { recordId: bigint; applicant: string; createdAt: bigint; survey: StepOut; legal: StepOut; registrar: StepOut }
-interface SaleOut { recordId: bigint; buyer: string; seller: string; amount: bigint; status: bigint; since: bigint }
-interface DisputeOut { saleId: bigint; raisedBy: string; reason: string; evidenceHash: string; outcome: bigint; judge: string }
+interface DocOut { docType: string; hash: string }
+interface PaymentOut { recordId: bigint; kind: bigint; amountPesewas: bigint; receiptHash: string; payer: string; recordedBy: string; at: bigint; transferId: bigint }
+interface AppOut { recordId: bigint; applicant: string; createdAt: bigint; decision: bigint; decidedBy: string; decidedAt: bigint; reason: string }
+interface TransferOut { recordId: bigint; from: string; to: string; requestedAt: bigint; decision: bigint; decidedBy: string; decidedAt: bigint; reason: string }
 /** Every event field the snapshot reads (each event uses a subset). */
 interface Ev {
   who: string; by: string; cardHash: string; citizen: boolean; appId: bigint; recordId: bigint; parcelId: string;
-  applicant: string; pillars: bigint; step: bigint; reason: string; tokenId: bigint; owner: string; seller: string;
-  buyer: string; price: bigint; amount: bigint; saleId: bigint; disputeId: bigint; favourSeller: boolean; judge: string;
-  spender: string; value: bigint;
+  applicant: string; pillars: bigint; reason: string; tokenId: bigint; owner: string; transferId: bigint; from: string; to: string;
+  paymentId: bigint; kind: bigint; amountPesewas: bigint;
 }
 
 const INTERESTS: Interest[] = ["Allodial", "Customary freehold", "Common-law freehold", "Leasehold"];
-const STATUSES: ParcelStatus[] = ["pending", "verified", "for_sale", "in_escrow", "sold", "frozen", "rejected"];
-const STEP_STATUS: Step["status"][] = ["waiting", "approved", "rejected"];
-const SALE_STATUS: Sale["status"][] = ["awaiting", "approved", "refunded", "disputed"];
+const STATUSES: ParcelStatus[] = ["pending", "registered", "transfer_pending", "rejected"];
+const DECISIONS: Decision[] = ["waiting", "approved", "rejected", "cancelled"];
 const ID_STATUS = ["none", "pending", "verified", "rejected"] as const;
-const STEP_NAMES = ["survey", "legal", "registrar"] as const;
-const STEP_FN = ["approveSurvey", "approveLegal", "finalise"];
-const STEP_ROLE: Role[] = ["Surveyor", "Lawyer", "Registrar"];
 
 const n = (v: unknown) => Number(v);
 const ms = (seconds: unknown) => Number(seconds) * 1000;
@@ -80,10 +72,7 @@ export async function loadChainState(): Promise<ChainState> {
     ]);
     const r: Role[] = [];
     if (roles.registrar) r.push("Registrar");
-    if (roles.surveyor) r.push("Surveyor");
-    if (roles.lawyer) r.push("Lawyer");
     if (roles.idOfficer) r.push("Identity officer");
-    if (roles.judge) r.push("Judge");
     const officer = r.length > 0;
     const id = publicIdOf(address);
     const status = ID_STATUS[n(profile.status)] ?? "none";
@@ -100,82 +89,60 @@ export async function loadChainState(): Promise<ChainState> {
   accounts.push({ id: "public", name: "Public visitor", kind: "public", roles: [], identity: "none" });
   const idOf = (address: string) => (address && address !== ZERO ? publicIdOf(address) : "");
 
-  // ---------- parcels, listings ----------
+  // ---------- parcels ----------
   const parcelCount = n(await view<bigint>(c, "TitleRegistry", "parcelCount"));
   const rawParcels = await Promise.all(Array.from({ length: parcelCount }, async (_, i) => {
     const recordId = i + 1;
-    const [p, b, docs, listing] = await Promise.all([
+    const [p, b, docs, owners] = await Promise.all([
       view<ParcelOut>(c, "TitleRegistry", "getParcel", recordId),
       view<BoundaryOut>(c, "TitleRegistry", "getBoundary", recordId),
       view<DocOut[]>(c, "TitleRegistry", "getDocs", recordId),
-      view<ListingOut>(c, "Marketplace", "listingOf", recordId),
+      view<string[]>(c, "TitleRegistry", "ownerHistory", recordId),
     ]);
     const tokenId = n(p.tokenId);
     const parcel: Parcel = {
-      id: p.parcelId, recordId,
-      token: tokenId || undefined, titleNo: tokenId || undefined,
+      id: p.parcelId, recordId, titleNo: tokenId || undefined,
       interest: INTERESTS[n(p.interest)]!, holder: p.holder, region: p.region, location: p.location,
+      planNumber: p.planNumber, gpsAddress: p.gpsAddress,
       acres: n(p.acresX100) / 100, status: STATUSES[n(p.status)]!, owner: idOf(p.owner),
+      owners: owners.map(idOf),
       pillars: b.lats.map((lat, k) => [fromMicro(lat), fromMicro(b.lngs[k]!)] as [number, number]),
+      registeredAt: p.registeredAt ? ms(p.registeredAt) || undefined : undefined,
       updatedAt: ms(p.updatedAt),
-      docs: docs.map((d) => ({ type: d.docType, name: d.name, hash: d.hash })),
+      docs: docs.map((d) => ({ type: d.docType, hash: d.hash })),
     };
-    if (listing.price > 0n) { parcel.price = fromUnits(listing.price); parcel.listedAt = ms(listing.listedAt); }
     return parcel;
   }));
   // A rejected application frees its parcel id; if the id was reused, show only the newest record.
   const latest = new Map<string, Parcel>();
   for (const p of rawParcels) latest.set(p.id, p);
   const parcels = [...latest.values()];
-  const byRecord = new Map(rawParcels.map((p) => [p.recordId!, p]));
+  const byRecord = new Map(rawParcels.map((p) => [p.recordId, p]));
+  const isCurrent = (recordId: bigint) => { const p = byRecord.get(n(recordId)); return !!p && latest.get(p.id) === p; };
 
-  // ---------- applications ----------
+  // ---------- applications and transfer requests ----------
   const appCount = n(await view<bigint>(c, "TitleRegistry", "applicationCount"));
-  const applications: Application[] = await Promise.all(Array.from({ length: appCount }, async (_, i) => {
-    const a = await view<AppOut>(c, "TitleRegistry", "getApplication", i + 1);
-    const step = (x: StepOut): Step => {
-      return { status: STEP_STATUS[n(x.status)]!, by: x.by === ZERO ? undefined : idOf(x.by), at: x.at ? ms(x.at) : undefined, reason: x.reason || undefined };
-    };
-    return {
-      id: `APP-${i + 1}`, parcelId: byRecord.get(n(a.recordId))?.id ?? "?", applicant: idOf(a.applicant),
-      createdAt: ms(a.createdAt), survey: step(a.survey), legal: step(a.legal), registrar: step(a.registrar),
-    };
+  const rawApps = await Promise.all(Array.from({ length: appCount }, (_, i) => view<AppOut>(c, "TitleRegistry", "getApplication", i + 1)));
+  const applications: Application[] = rawApps.map((a, i) => ({
+    id: `APP-${i + 1}`, parcelId: byRecord.get(n(a.recordId))?.id ?? "?", applicant: idOf(a.applicant),
+    createdAt: ms(a.createdAt), decision: DECISIONS[n(a.decision)]!,
+    by: idOf(a.decidedBy) || undefined, at: a.decidedAt ? ms(a.decidedAt) || undefined : undefined, reason: a.reason || undefined,
   }));
-  // Applications for records that were superseded would point at a parcel the UI can't show; keep them only if current.
-  const visibleApps = applications.filter((a) => {
-    const rec = rawParcels.find((p) => p.id === a.parcelId && latest.get(p.id) === p);
-    return !!rec;
-  });
+  const visibleApps = applications.filter((_, i) => isCurrent(rawApps[i]!.recordId));
 
-  // ---------- sales, disputes ----------
-  const saleCount = n(await view<bigint>(c, "Marketplace", "saleCount"));
-  const sales: Sale[] = await Promise.all(Array.from({ length: saleCount }, async (_, i) => {
-    const s = await view<SaleOut>(c, "Marketplace", "getSale", i + 1);
+  const transferCount = n(await view<bigint>(c, "TitleRegistry", "transferCount"));
+  const transfers: TransferRequest[] = await Promise.all(Array.from({ length: transferCount }, async (_, i) => {
+    const t = await view<TransferOut>(c, "TitleRegistry", "getTransfer", i + 1);
     return {
-      id: `SALE-${i + 1}`, parcelId: byRecord.get(n(s.recordId))?.id ?? "?", buyer: idOf(s.buyer), seller: idOf(s.seller),
-      amount: fromUnits(s.amount), status: SALE_STATUS[n(s.status)]!, since: ms(s.since),
-    };
-  }));
-  const disputeCount = n(await view<bigint>(c, "DisputeResolution", "disputeCount"));
-  const disputes: Dispute[] = await Promise.all(Array.from({ length: disputeCount }, async (_, i) => {
-    const d = await view<DisputeOut>(c, "DisputeResolution", "getDispute", i + 1);
-    const outcome = n(d.outcome);
-    return {
-      id: `DSP-${i + 1}`, saleId: `SALE-${n(d.saleId)}`, raisedBy: idOf(d.raisedBy), reason: d.reason,
-      evidenceHash: d.evidenceHash === ZERO32 ? undefined : d.evidenceHash,
-      outcome: outcome === 0 ? undefined : outcome === 2 ? "seller" : "buyer", judge: outcome ? idOf(d.judge) : undefined,
+      id: `TRF-${i + 1}`, parcelId: byRecord.get(n(t.recordId))?.id ?? "?", from: idOf(t.from), to: idOf(t.to),
+      requestedAt: ms(t.requestedAt), decision: DECISIONS[n(t.decision)]!,
+      by: idOf(t.decidedBy) || undefined, at: t.decidedAt ? ms(t.decidedAt) || undefined : undefined, reason: t.reason || undefined,
     };
   }));
 
-  // ---------- wallets ----------
-  const wallets: ChainState["wallets"] = {};
-  await Promise.all(accounts.filter((a) => a.address && a.kind === "citizen").map(async (a) => {
-    const [bal, last] = await Promise.all([
-      view<bigint>(c, "TestCedi", "balanceOf", a.address),
-      view<bigint>(c, "TestCedi", "lastFaucet", a.address),
-    ]);
-    wallets[a.id] = { tghs: fromUnits(bal), lastFaucet: last > 0n ? ms(last) : undefined };
-  }));
+  // ---------- fee receipts (FeeLedger) ----------
+  const paymentCount = n(await view<bigint>(c, "FeeLedger", "paymentCount"));
+  const rawPayments = await Promise.all(Array.from({ length: paymentCount }, (_, i) => view<PaymentOut>(c, "FeeLedger", "getPayment", i + 1)));
 
   // ---------- events: history, activity log, notifications ----------
   const fromBlock = deployment?.startBlock ?? 0;
@@ -192,16 +159,18 @@ export async function loadChainState(): Promise<ChainState> {
   const txs: Tx[] = [];
   const notifications: Notification[] = [];
   const pid = (recordId: bigint) => byRecord.get(n(recordId))?.id ?? `#${n(recordId)}`;
-  const saleParcel = (saleId: bigint) => sales[n(saleId) - 1]?.parcelId ?? "?";
-  const marketAddr = (deployment?.contracts.Marketplace ?? "").toLowerCase();
+  const paymentMeta = new Map<number, { block: number; at: number; tx: string }>();
 
   for (const { contract, e } of events) {
     const v = e.returnValues as unknown as Ev;
     const block = n(e.blockNumber);
     const at = blockTimes.get(block) ?? 0;
+    const hash = e.transactionHash ?? "";
     const tx = (fn: string, args: string, by: string) =>
-      txs.push({ hash: e.transactionHash ?? "", contract, fn, args, from: idOf(by), block, at, status: "Success" });
-    const hist = (parcelId: string, type: HistoryEvent["type"], text: string) => history.push({ parcelId, type, text, at, block });
+      txs.push({ hash, contract, fn, args, from: idOf(by), block, at, status: "Success" });
+    const hist = (recordId: bigint, type: HistoryEvent["type"], text: string) => {
+      if (isCurrent(recordId)) history.push({ parcelId: pid(recordId), type, text, at, block, tx: hash });
+    };
     const note = (to: string, text: string) => notifications.push({ to, text, at });
 
     switch (`${contract}.${e.event}`) {
@@ -219,100 +188,78 @@ export async function loadChainState(): Promise<ChainState> {
         break;
       case "TitleRegistry.ApplicationSubmitted":
         tx("submitApplication", `"${v.parcelId}", ${n(v.pillars)} pillars`, v.applicant);
-        note("role:Surveyor", `New title application ${v.parcelId} waiting for your review`);
+        hist(v.recordId, "Application", `Applied by ${idOf(v.applicant)}`);
+        note("role:Registrar", `New title application ${v.parcelId} waiting for your review`);
         break;
-      case "TitleRegistry.StepApproved": {
-        const step = n(v.step), parcelId = pid(v.recordId);
-        tx(STEP_FN[step]!, `APP-${n(v.appId)}`, v.by);
-        const applicant = applications[n(v.appId) - 1]?.applicant ?? "";
-        if (step < 2) {
-          note(applicant, `Your application ${parcelId} passed ${STEP_NAMES[step]}`);
-          note(`role:${STEP_ROLE[step + 1]}`, `Title application ${parcelId} waiting for your review`);
-        }
+      case "TitleRegistry.ApplicationApproved":
+        tx("approveApplication", `APP-${n(v.appId)}`, v.by);
         break;
-      }
       case "TitleRegistry.ApplicationRejected": {
         tx("rejectApplication", `APP-${n(v.appId)}, "${v.reason}"`, v.by);
-        const applicant = applications[n(v.appId) - 1]?.applicant ?? "";
-        note(applicant, `Your application ${pid(v.recordId)} was rejected at ${STEP_NAMES[n(v.step)]}: ${v.reason}`);
+        hist(v.recordId, "Rejected", `Rejected by the registrar: ${v.reason}`);
+        note(applications[n(v.appId) - 1]?.applicant ?? "", `Your application ${pid(v.recordId)} was rejected: ${v.reason}`);
         break;
       }
       case "TitleRegistry.TitleMinted":
-        hist(pid(v.recordId), "Registration", `Minted to ${idOf(v.owner)}`);
+        hist(v.recordId, "Registration", `Title GLT #${n(v.tokenId)} minted to ${idOf(v.owner)}`);
         note(idOf(v.owner), `Title GLT #${n(v.tokenId)} issued for ${pid(v.recordId)}`);
         break;
-      case "Marketplace.Listed":
-        tx("listForSale", `"${pid(v.recordId)}", ${fromUnits(v.price).toLocaleString("en-US")}`, v.seller);
-        hist(pid(v.recordId), "Listing", `Listed for ${cedi(fromUnits(v.price))}`);
+      case "TitleRegistry.TransferRequested":
+        tx("requestTransfer", `"${pid(v.recordId)}", ${idOf(v.to)}`, v.from);
+        hist(v.recordId, "Transfer requested", `${idOf(v.from)} asked to transfer to ${idOf(v.to)}`);
+        note("role:Registrar", `Transfer of ${pid(v.recordId)} waiting for approval`);
+        note(idOf(v.to), `${idOf(v.from)} asked to transfer ${pid(v.recordId)} to you`);
         break;
-      case "Marketplace.ListingCancelled":
-        tx("cancelListing", `"${pid(v.recordId)}"`, v.seller);
+      case "TitleRegistry.TransferApproved":
+        tx("approveTransfer", `TRF-${n(v.transferId)}`, v.by);
+        hist(v.recordId, "Transfer", `${idOf(v.from)} → ${idOf(v.to)}, approved by the registrar`);
+        note(idOf(v.to), `${pid(v.recordId)} is now registered to you`);
+        note(idOf(v.from), `Transfer of ${pid(v.recordId)} approved`);
         break;
-      case "Marketplace.Purchased":
-        tx("buyListed", `"${pid(v.recordId)}"`, v.buyer);
-        note("role:Registrar", `Sale of ${pid(v.recordId)} waiting for approval`);
-        note(idOf(v.seller), `${idOf(v.buyer)} paid ${cedi(fromUnits(v.amount))} into escrow for ${pid(v.recordId)}`);
-        break;
-      case "Marketplace.SaleApproved":
-        tx("approveSale", `SALE-${n(v.saleId)}`, v.by);
-        break;
-      case "Marketplace.SaleRejected":
-        tx("rejectSale", `SALE-${n(v.saleId)}`, v.by);
-        break;
-      case "Marketplace.SaleCompleted": {
-        const amount = cedi(fromUnits(v.amount));
-        hist(pid(v.recordId), "Transfer", `${idOf(v.seller)} → ${idOf(v.buyer)} for ${amount}`);
-        note(idOf(v.buyer), `Sale of ${pid(v.recordId)} approved — the title is now yours`);
-        note(idOf(v.seller), `Sale of ${pid(v.recordId)} approved — ${amount} released to you`);
+      case "TitleRegistry.TransferRejected": {
+        tx("rejectTransfer", `TRF-${n(v.transferId)}, "${v.reason}"`, v.by);
+        hist(v.recordId, "Transfer rejected", `Rejected by the registrar: ${v.reason}`);
+        const t = transfers[n(v.transferId) - 1];
+        if (t) note(t.from, `Transfer of ${pid(v.recordId)} was rejected: ${v.reason}`);
         break;
       }
-      case "Marketplace.SaleRefunded": {
-        const sale = sales[n(v.saleId) - 1];
-        hist(pid(v.recordId), "Refund", `Sale cancelled, ${idOf(v.buyer)} refunded`);
-        note(idOf(v.buyer), `Sale of ${pid(v.recordId)} rejected — you were refunded in full`);
-        if (sale) note(sale.seller, `Sale of ${pid(v.recordId)} was rejected`);
+      case "FeeLedger.PaymentRecorded": {
+        const kind = FEE_KINDS[n(v.kind)]!;
+        // The amount is public on chain; the app only shows it to the owner and the Lands Commission.
+        txs.push({ hash, contract, fn: "recordPayment", args: `"${pid(v.recordId)}", ${kind}`, from: idOf(v.by), block, at, status: "Success" });
+        const raw = rawPayments[n(v.paymentId) - 1];
+        if (raw) paymentMeta.set(n(v.paymentId), { block, at, tx: hash });
+        note(idOf(raw?.payer ?? ""), `${kind} receipt of ${cedi(n(v.amountPesewas) / 100)} recorded for ${pid(v.recordId)}`);
         break;
       }
-      case "DisputeResolution.DisputeRaised":
-        tx("raiseDispute", `SALE-${n(v.saleId)}, "${v.reason}"`, v.by);
-        hist(saleParcel(v.saleId), "Dispute", `Dispute raised by ${idOf(v.by)}`);
-        note("role:Judge", `New dispute on ${saleParcel(v.saleId)}`);
+      case "TitleRegistry.TransferCancelled": {
+        const t = transfers[n(v.transferId) - 1];
+        if (t) txs.push({ hash, contract, fn: "cancelTransfer", args: `TRF-${n(v.transferId)}`, from: t.from, block, at, status: "Success" });
+        hist(v.recordId, "Transfer cancelled", "Cancelled by the owner");
         break;
-      case "DisputeResolution.DisputeResolved":
-        tx("resolveDispute", `DSP-${n(v.disputeId)}, ${v.favourSeller ? "seller" : "buyer"}`, v.judge);
-        break;
-      case "DisputeResolution.TitleFrozen":
-        tx("freezeTitle", `"${pid(v.recordId)}"`, v.judge);
-        hist(pid(v.recordId), "Freeze", `Frozen by court order (${v.reason})`);
-        break;
-      case "DisputeResolution.TitleUnfrozen":
-        tx("unfreezeTitle", `"${pid(v.recordId)}"`, v.judge);
-        break;
-      case "TestCedi.FaucetClaimed":
-        tx("faucet", "", v.who);
-        break;
-      case "TestCedi.Approval":
-        if (v.spender.toLowerCase() === marketAddr && v.value > 0n) {
-          tx("approve", `Marketplace, ${fromUnits(v.value).toLocaleString("en-US")}`, v.owner);
-        }
-        break;
+      }
     }
   }
 
+  const payments: Payment[] = rawPayments.map((p, i) => {
+    const meta = paymentMeta.get(i + 1);
+    return {
+      id: `PAY-${i + 1}`, parcelId: pid(p.recordId), kind: FEE_KINDS[n(p.kind)]!, amount: n(p.amountPesewas) / 100,
+      receiptHash: p.receiptHash, payer: idOf(p.payer), recordedBy: idOf(p.recordedBy), at: ms(p.at),
+      block: meta?.block ?? 0, tx: meta?.tx ?? "", transferId: n(p.transferId) ? `TRF-${n(p.transferId)}` : undefined,
+    };
+  }).filter((p) => isCurrent(rawPayments[Number(p.id.slice(4)) - 1]!.recordId));
+
   const allTxs = [...txs, ...localReverts()].sort((a, b) => b.block - a.block || b.at - a.at);
-  const titled = rawParcels.filter((p) => p.token);
   return {
     block: blockNow,
     accounts,
     parcels,
     applications: visibleApps,
-    sales,
-    disputes,
+    transfers: transfers.filter((t) => parcels.some((p) => p.id === t.parcelId)),
+    payments,
     history,
     txs: allTxs,
-    wallets,
     notifications: notifications.reverse(),
-    nextToken: titled.length + 1,
-    nextTitle: titled.length + 1,
   };
 }

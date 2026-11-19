@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, CircleDollarSign, Layers, LandPlot, Plus, X } from "lucide-react";
+import { ChevronRight, Layers, LandPlot, Plus, ShieldCheck, X } from "lucide-react";
 import { Shell } from "@/components/lc/Shell";
 import { ParcelMap } from "@/components/lc/ParcelMap";
-import { BuyDialog } from "@/components/lc/TitleHealth";
 import { Dot, Mono, Pill, StatusPill } from "@/components/lc/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMe } from "@/lib/landchain/store";
-import { cedi, cediShort, STATUS_TONE } from "@/lib/landchain/format";
+import { STATUS_TONE } from "@/lib/landchain/format";
+import { shownName } from "@/lib/landchain/privacy";
 import type { ParcelStatus } from "@/lib/landchain/types";
 import { toast } from "sonner";
 
@@ -16,18 +16,17 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Land Map · LandChain Ghana" },
-      { name: "description", content: "Browse registered land parcels in Berekuso, see what's for sale and check any title." },
+      { name: "description", content: "Browse registered land parcels in Berekuso and check any title." },
       { property: "og:title", content: "Land Map · LandChain Ghana" },
-      { property: "og:description", content: "Browse registered land parcels, listings and escrow status on the LandChain map." },
+      { property: "og:description", content: "Browse land parcels registered on the LandChain blockchain." },
     ],
   }),
   component: LandMap,
 });
 
 const FILTERS: { key: ParcelStatus; label: string }[] = [
-  { key: "for_sale", label: "For sale" }, { key: "in_escrow", label: "In escrow" },
-  { key: "sold", label: "Sold" }, { key: "pending", label: "Pending" },
-  { key: "frozen", label: "Frozen" }, { key: "verified", label: "Not listed" },
+  { key: "registered", label: "Registered" }, { key: "transfer_pending", label: "Transfer pending" },
+  { key: "pending", label: "Pending" },
 ];
 
 function LandMap() {
@@ -36,21 +35,19 @@ function LandMap() {
   const [show, setShow] = useState<Set<ParcelStatus>>(new Set(FILTERS.map((f) => f.key)));
   const [panel, setPanel] = useState(true);
   const [q, setQ] = useState("");
-  const [buyOpen, setBuyOpen] = useState(false);
   const visible = s.parcels.filter((p) => show.has(p.status) && p.status !== "rejected");
   const sel = s.parcels.find((p) => p.id === selected);
 
-  const snap = useMemo(() => {
-    const listed = s.parcels.filter((p) => p.status === "for_sale");
-    const ppa = listed.map((p) => p.price! / p.acres).sort((a, b) => a - b);
-    const median = ppa.length ? (ppa.length % 2 ? ppa[(ppa.length - 1) / 2]! : (ppa[ppa.length / 2 - 1]! + ppa[ppa.length / 2]!) / 2) : 0;
-    const escrow = s.sales.filter((x) => x.status === "awaiting" || x.status === "disputed").reduce((a, x) => a + x.amount, 0);
-    return { listed: listed.length, median, escrow, titles: s.parcels.filter((p) => p.titleNo).length };
-  }, [s]);
+  const snap = useMemo(() => ({
+    titles: s.parcels.filter((p) => p.titleNo).length,
+    pending: s.parcels.filter((p) => p.status === "pending").length,
+    transfers: s.transfers.filter((t) => t.decision === "approved").length,
+    owners: new Set(s.parcels.filter((p) => p.titleNo).map((p) => p.owner)).size,
+  }), [s]);
 
   const search = () => {
     const t = q.trim().toLowerCase();
-    const p = s.parcels.find((x) => x.id.toLowerCase() === t || x.owner.toLowerCase() === t || String(x.token) === t.replace("#", ""))
+    const p = s.parcels.find((x) => x.id.toLowerCase() === t || x.owner.toLowerCase() === t || String(x.titleNo) === t.replace("#", ""))
       ?? s.parcels.find((x) => x.id.toLowerCase().includes(t) || x.owner.toLowerCase().includes(t));
     if (p) { setSelected(p.id); setPanel(true); } else toast.error("No matching parcel");
   };
@@ -81,22 +78,19 @@ function LandMap() {
                   </div>
                   <div className="space-y-3 p-4">
                     <div>
-                      <div className="text-2xl font-semibold">{sel.price ? cedi(sel.price) : sel.titleNo ? `GLT #${sel.titleNo}` : "Pending title"}</div>
-                      <div className="text-sm text-muted-foreground">{sel.acres} acres{sel.price ? ` · ${cedi(sel.price! / sel.acres)} per acre` : ""}</div>
+                      <div className="text-2xl font-semibold">{sel.titleNo ? `GLT #${sel.titleNo}` : "Pending title"}</div>
+                      <div className="text-sm text-muted-foreground">{sel.acres} acres</div>
                     </div>
                     <div className="flex flex-wrap gap-2"><StatusPill status={sel.status} /><Pill>{sel.interest}</Pill></div>
                     <dl className="space-y-2 pt-2 text-sm">
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Owner ID</dt><dd><Mono>{sel.owner}</Mono></dd></div>
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Owner</dt><dd>{shownName(s, me, sel.owner) === sel.owner ? <Mono>{sel.owner}</Mono> : shownName(s, me, sel.owner)}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">Allodial holder</dt><dd>{sel.holder}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">Location</dt><dd>Berekuso, {sel.region}</dd></div>
                     </dl>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {sel.status === "for_sale" && me.kind === "citizen" && me.id !== sel.owner && <Button onClick={() => setBuyOpen(true)}>Buy for {cediShort(sel.price!)}</Button>}
                       <Button variant="outline" asChild><Link to="/title/$parcelId" params={{ parcelId: sel.id }}>Open title record</Link></Button>
                     </div>
-                    {sel.status === "for_sale" && me.kind !== "citizen" && <p className="text-xs text-muted-foreground">Switch to a citizen account to buy.</p>}
                   </div>
-                  <BuyDialog open={buyOpen} onOpenChange={setBuyOpen} parcel={sel} />
                 </div>
               )}
 
@@ -106,7 +100,7 @@ function LandMap() {
                   {FILTERS.map((f) => (
                     <label key={f.key} className="flex items-center gap-2">
                       <Checkbox checked={show.has(f.key)} onCheckedChange={(c) => { const n = new Set(show); if (c) n.add(f.key); else n.delete(f.key); setShow(n); }} />
-                      <Dot tone={f.key === "for_sale" ? "ok" : STATUS_TONE[f.key]} />
+                      <Dot tone={STATUS_TONE[f.key]} />
                       {f.label} <span className="text-muted-foreground">{s.parcels.filter((p) => p.status === f.key).length}</span>
                     </label>
                   ))}
@@ -114,9 +108,9 @@ function LandMap() {
               </div>
 
               <div className="rounded-xl border bg-card shadow-float">
-                <div className="flex items-center gap-2 border-b px-4 py-3 font-semibold"><CircleDollarSign className="size-4" />Market snapshot</div>
+                <div className="flex items-center gap-2 border-b px-4 py-3 font-semibold"><ShieldCheck className="size-4" />Register snapshot</div>
                 <dl className="divide-y text-sm">
-                  {[["Active listings", snap.listed], ["Median price per acre", cedi(snap.median)], ["Held in escrow", cedi(snap.escrow)], ["Registered titles", snap.titles]].map(([k, v]) => (
+                  {[["Registered titles", snap.titles], ["Applications pending", snap.pending], ["Completed transfers", snap.transfers], ["Title holders", snap.owners]].map(([k, v]) => (
                     <div key={k as string} className="flex justify-between px-4 py-2.5"><dt className="text-muted-foreground">{k}</dt><dd className="font-semibold">{v}</dd></div>
                   ))}
                 </dl>

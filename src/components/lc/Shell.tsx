@@ -1,14 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Activity, Bell, Check, ChevronDown, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, ShieldCheck, User, Wallet, X, LandPlot,
+  Activity, Bell, Check, ChevronDown, Map as MapIcon, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, ShieldCheck, User, X, LandPlot, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMe, useChain, switchAccount, resetDemo, signOut, connectWallet, reloadChain, MODE } from "@/lib/landchain/store";
+import { useMe, useChain, switchAccount, signOut, connectWallet, reloadChain } from "@/lib/landchain/store";
 import { hasMetaMask } from "@/lib/landchain/chain/client";
 import { getParcel } from "@/lib/landchain/engine";
 import { fmtDate, blockNo } from "@/lib/landchain/format";
 import { pendingCountFor } from "@/lib/landchain/queue";
+import { useEnquiries } from "@/lib/landchain/enquiries";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
@@ -19,10 +20,11 @@ const NAV = [
     { to: "/register", label: "Register Land", icon: Plus },
   ] },
   { group: "Lands Commission", items: [{ to: "/review", label: "Review Queue", icon: Check, badge: true }] },
-  { group: "Wallet", items: [{ to: "/balance", label: "My Balance", icon: Wallet }, { to: "/identity", label: "Identity", icon: User }] },
+  { group: "Account", items: [{ to: "/identity", label: "Identity", icon: User }] },
   { group: "Records", items: [
     { to: "/verify", label: "Verify a Title", icon: ShieldCheck },
     { to: "/activity", label: "Activity Log", icon: Activity },
+    { to: "/assumptions", label: "Assumptions", icon: Info },
   ] },
 ] as const;
 
@@ -70,14 +72,8 @@ function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onTo
           </div>
         ))}
       </nav>
-      {!collapsed && (MODE === "chain" ? <ChainCard /> : (
-        <div className="m-3 rounded-xl border p-3 text-xs">
-          <div className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ok" /><span className="font-medium">Demo chain</span><span className="text-muted-foreground">· block {blockNo(s.block)}</span></div>
-          <p className="mt-2 text-muted-foreground">Contracts run in your browser with the same rules as the Solidity code.</p>
-          <button onClick={resetDemo} className="mt-3 font-medium text-primary hover:underline">Reset demo data</button>
-          <p className="sr-only">Signed in as {me.name}</p>
-        </div>
-      ))}
+      {!collapsed && <ChainCard />}
+      <p className="sr-only">Signed in as {me.name}</p>
     </div>
   );
 }
@@ -86,7 +82,7 @@ function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onTo
 function ChainCard() {
   const { state: s, status } = useChain();
   const dot = status.kind === "ok" ? "bg-ok" : status.kind === "error" ? "bg-bad" : "bg-muted-foreground";
-  const name = status.kind === "demo" ? "Demo chain" : status.name;
+  const name = status.name;
   return (
     <div className="m-3 rounded-xl border p-3 text-xs">
       <div className="flex items-center gap-1.5"><span className={cn("size-2 rounded-full", dot)} /><span className="font-medium">{name}</span>
@@ -141,7 +137,7 @@ function AccountSwitcher() {
           </div>
         ))}
         <DropdownMenuSeparator />
-        {MODE === "chain" && hasMetaMask() && <DropdownMenuItem onClick={() => void connectWallet()}>Connect MetaMask</DropdownMenuItem>}
+        {hasMetaMask() && <DropdownMenuItem onClick={() => void connectWallet()}>Connect MetaMask</DropdownMenuItem>}
         <DropdownMenuItem onClick={() => { signOut(); navigate({ to: "/login", replace: true }); }} className="text-bad">Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -150,7 +146,9 @@ function AccountSwitcher() {
 
 function Notifications() {
   const { s, me } = useMe();
-  const mine = s.notifications.filter((n) => n.to === me.id || me.roles.some((r) => n.to === `role:${r}`)).slice(0, 8);
+  const enquiries = useEnquiries().filter((e) => e.to === me.id && e.status === "new")
+    .map((e) => ({ to: me.id, text: `New enquiry about ${e.parcelId} from ${e.name}. Open the title to read it.`, at: e.at }));
+  const mine = [...enquiries, ...s.notifications.filter((n) => n.to === me.id || me.roles.some((r) => n.to === `role:${r}`))].slice(0, 8);
   const attention = pendingCountFor(s, me) > 0 || mine.length > 0;
   return (
     <DropdownMenu>
@@ -197,7 +195,7 @@ export function Shell({ title, children, full }: { title: string; children: Reac
   const { ready, signedIn } = useChain();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
-  const open = path.startsWith("/verify") || path.startsWith("/title/");
+  const open = path.startsWith("/verify") || path.startsWith("/title/") || path.startsWith("/assumptions");
   useEffect(() => {
     if (ready && !signedIn && !open) navigate({ to: "/login", replace: true });
   }, [ready, signedIn, open, navigate]);

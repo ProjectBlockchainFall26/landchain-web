@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { landchain, sha256Hex, useMe } from "@/lib/landchain/store";
 import { validateBoundary } from "@/lib/landchain/engine";
 import { areaAcres, type LatLng } from "@/lib/landchain/geo";
-import type { Doc, Interest } from "@/lib/landchain/types";
+import type { Interest } from "@/lib/landchain/types";
+import { putFile } from "@/lib/landchain/vault";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -18,13 +19,23 @@ export const Route = createFileRoute("/register")({
       { title: "Register Land · LandChain Ghana" },
       { name: "description", content: "Draw your parcel boundary and apply for a digital land title." },
       { property: "og:title", content: "Register Land · LandChain Ghana" },
-      { property: "og:description", content: "Apply for a LandChain title: draw the boundary, add documents, track sign-offs." },
+      { property: "og:description", content: "Apply for a LandChain title: draw the boundary, add the site plan details and documents, get it registered on the blockchain." },
     ],
   }),
   component: Register,
 });
 
 const INTERESTS: Interest[] = ["Allodial", "Customary freehold", "Common-law freehold", "Leasehold"];
+
+/** What the Lands Commission asks for (Ministry of Lands FAQ; Lands Commission service charter). */
+const DOC_TYPES = [
+  { type: "Site plan", note: "Prepared by a licensed surveyor, approved by Survey & Mapping", required: true },
+  { type: "Indenture", note: "Proof of ownership: indenture, family declaration or deed of gift", required: true },
+  { type: "Search report", note: "Official search from the Lands Commission", required: true },
+  { type: "Consent / concurrence", note: "Only for stool or family land", required: false },
+] as const;
+interface PickedDoc { type: string; name: string; hash: string; file: File }
+const GPS_RE = /^[A-Z]{2}-\d{3,4}-\d{4}$/;
 const PLOT_ACRES = (100 * 70 * 0.092903) / 4046.8564;
 
 function Register() {
@@ -39,13 +50,16 @@ function Register() {
   const [interest, setInterest] = useState<Interest>("Leasehold");
   const [holder, setHolder] = useState("Berekuso Stool");
   const [region, setRegion] = useState("Eastern");
-  const [docs, setDocs] = useState<Doc[]>([]);
+  const [docs, setDocs] = useState<PickedDoc[]>([]);
+  const [plan, setPlan] = useState("");
+  const [gps, setGps] = useState("");
   const [done, setDone] = useState<string>();
 
   const area = areaAcres(pts);
   const boundaryErr = pts.length >= 3 ? validateBoundary(s, pts) : null;
   const overlap = boundaryErr?.startsWith("Boundary overlaps");
   const parcelId = pid || nextId;
+  const missingDocs = DOC_TYPES.filter((t) => t.required && !docs.some((d) => d.type === t.type));
 
   if (me.kind !== "citizen" || me.identity !== "verified") {
     return (
@@ -66,15 +80,16 @@ function Register() {
         <div className="mx-auto max-w-lg rounded-xl border bg-card p-6">
           <CheckCircle2 className="size-8 text-ok" />
           <h2 className="mt-2 text-lg font-semibold">Application {done} submitted</h2>
-          <p className="mt-1 text-sm text-muted-foreground">It's now <b>Pending</b>. No title exists yet — it's created only after three sign-offs:</p>
+          <p className="mt-1 text-sm text-muted-foreground">It's on the blockchain as <b>Pending</b>. No title exists yet:</p>
           <ol className="mt-3 space-y-2 text-sm">
-            <li>1. <b>Surveyor</b> checks the boundary pillars on site</li>
-            <li>2. <b>Lawyer</b> reviews the indenture and search report</li>
-            <li>3. <b>Registrar</b> finalises and mints your digital title</li>
+            <li>1. The <b>Lands Commission registrar</b> checks your boundary and documents</li>
+            <li>2. The registrar records your <b>stamp duty</b> and <b>registration fee</b> receipts. The contract won't approve without them</li>
+            <li>3. On approval, the contract <b>mints your title as an NFT</b> to your wallet</li>
+            <li>4. From then on the record is locked: no one can edit it or move it without your request and the registrar's approval</li>
           </ol>
           <div className="mt-5 flex gap-2">
             <Button asChild><Link to="/title/$parcelId" params={{ parcelId: done }}>Track progress</Link></Button>
-            <Button variant="outline" onClick={() => { setDone(undefined); setPts([]); setPid(""); setDocs([]); }}>Register another</Button>
+            <Button variant="outline" onClick={() => { setDone(undefined); setPts([]); setPid(""); setDocs([]); setPlan(""); setGps(""); }}>Register another</Button>
           </div>
         </div>
       </Shell>
@@ -112,19 +127,40 @@ function Register() {
                 <Input className="mt-1 text-foreground" value={holder} onChange={(e) => setHolder(e.target.value)} /></label>
               <label className="block text-sm text-muted-foreground">Region
                 <Input className="mt-1 text-foreground" value={region} onChange={(e) => setRegion(e.target.value)} /></label>
-              <label className="block text-sm text-muted-foreground">Indenture, site plan, search report
-                <Input className="mt-1" type="file" multiple onChange={async (e) => {
-                  const files = [...(e.target.files ?? [])];
-                  const out: Doc[] = [];
-                  for (const f of files) out.push({ type: /site/i.test(f.name) ? "Site plan" : /search/i.test(f.name) ? "Search report" : "Indenture", name: f.name, hash: await sha256Hex(await f.arrayBuffer()) });
-                  setDocs(out);
-                }} /></label>
-              {docs.map((d) => <div key={d.hash} className="text-xs text-muted-foreground">{d.name} · <Mono>{d.hash.slice(0, 22)}…</Mono></div>)}
+              <label className="block text-sm text-muted-foreground">Regional / plan number (from the site plan)
+                <Input className="mt-1 text-foreground" value={plan} placeholder="SER B4115/26" onChange={(e) => setPlan(e.target.value.toUpperCase())} /></label>
+              <label className="block text-sm text-muted-foreground">GhanaPostGPS address (optional)
+                <Input className="mt-1 text-foreground" value={gps} placeholder="EA-1805-5795" onChange={(e) => setGps(e.target.value.toUpperCase())} />
+                {gps && !GPS_RE.test(gps) && <span className="text-xs text-bad">Format: two letters, then numbers, e.g. EA-1805-5795</span>}</label>
             </div>
-            <Button disabled={pts.length < 3 || !!boundaryErr || !holder.trim()} onClick={async () => {
-              const r = await landchain.submitApplication({ parcelId, interest, holder, region, location: `Berekuso, ${region} Region`, pillars: pts, docs });
-              if (r.ok) setDone(parcelId);
+            <div className="space-y-3 rounded-xl border border-ok/40 p-3">
+              <div className="flex items-center gap-2 font-medium"><span className="grid size-7 place-items-center rounded-md bg-ok-soft text-ok"><FileText className="size-4" /></span>3 · Documents</div>
+              <p className="text-xs text-muted-foreground">Only each file's SHA-256 <b>fingerprint</b> goes on the blockchain, which anyone can read. The files stay with the Lands Commission and only officers and you can open them.</p>
+              {DOC_TYPES.map((t) => {
+                const picked = docs.find((d) => d.type === t.type);
+                return (
+                  <label key={t.type} className="block rounded-lg border p-2 text-sm">
+                    <span className="flex items-center justify-between"><span className="font-medium">{t.type}{t.required && <span className="text-bad"> *</span>}</span>{picked && <CheckCircle2 className="size-4 text-ok" />}</span>
+                    <span className="block text-xs text-muted-foreground">{t.note}</span>
+                    <Input className="mt-1" type="file" onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      const rest = docs.filter((d) => d.type !== t.type);
+                      if (!f) { setDocs(rest); return; }
+                      setDocs([...rest, { type: t.type, name: f.name, file: f, hash: await sha256Hex(await f.arrayBuffer()) }]);
+                    }} />
+                    {picked && <Mono className="mt-1 block text-xs text-muted-foreground">{picked.hash.slice(0, 26)}…</Mono>}
+                  </label>
+                );
+              })}
+            </div>
+            <Button disabled={pts.length < 3 || !!boundaryErr || !holder.trim() || !plan.trim() || (!!gps && !GPS_RE.test(gps)) || missingDocs.length > 0} onClick={async () => {
+              const r = await landchain.submitApplication({ parcelId, interest, holder, region, location: `Berekuso, ${region} Region`, planNumber: plan, gpsAddress: gps, pillars: pts, docs: docs.map(({ type, hash }) => ({ type, hash })) });
+              if (!r.ok) return;
+              // The files go to the Lands Commission's vault (off chain), keyed by their fingerprint.
+              for (const d of docs) await putFile({ hash: d.hash, name: d.name, type: d.type, mime: d.file.type, size: d.file.size, data: d.file, parcelId });
+              setDone(parcelId);
             }}>Submit application</Button>
+            {missingDocs.length > 0 && <p className="text-xs text-muted-foreground">Still needed: {missingDocs.map((d) => d.type).join(", ")}.</p>}
             {pts.length < 3 && <p className="text-xs text-muted-foreground">Add at least 3 corner pillars to submit.</p>}
           </div>
         </div>

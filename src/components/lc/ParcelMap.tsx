@@ -5,17 +5,13 @@ import { centroid, pointInPolygon, project, toDMS, unproject, type LatLng } from
 import type { Parcel, ParcelStatus } from "@/lib/landchain/types";
 
 const FILL: Record<ParcelStatus, string> = {
-  for_sale: "fill-ok/25 stroke-ok",
-  in_escrow: "fill-warn/40 stroke-warn",
-  sold: "fill-bad/20 stroke-bad",
-  pending: "fill-neutral/20 stroke-neutral",
-  frozen: "fill-info/25 stroke-info",
-  verified: "fill-neutral/25 stroke-neutral",
+  registered: "fill-ok/25 stroke-ok",
+  transfer_pending: "fill-info/25 stroke-info",
+  pending: "fill-warn/30 stroke-warn",
   rejected: "fill-bad/10 stroke-bad",
 };
 const PIN: Record<ParcelStatus, string> = {
-  for_sale: "fill-primary", in_escrow: "fill-warn", sold: "fill-bad", pending: "fill-neutral",
-  frozen: "fill-info", verified: "fill-neutral", rejected: "fill-bad",
+  registered: "fill-primary", transfer_pending: "fill-info", pending: "fill-warn", rejected: "fill-bad",
 };
 
 function rand(i: number) {
@@ -171,7 +167,7 @@ export function ParcelMap({
           const sel = p.id === selectedId || p.id === focusId;
           return (
             <polygon key={p.id} points={pts(p.pillars)} vectorEffect="non-scaling-stroke" strokeWidth={sel ? 2.5 : 1.25}
-              className={cn(sel && p.status !== "in_escrow" ? "fill-primary/40 stroke-primary" : FILL[p.status], onSelect && "cursor-pointer")} />
+              className={cn(sel && p.status !== "transfer_pending" ? "fill-primary/40 stroke-primary" : FILL[p.status], onSelect && "cursor-pointer")} />
           );
         })}
         {!focusId && parcels.map((p) => {

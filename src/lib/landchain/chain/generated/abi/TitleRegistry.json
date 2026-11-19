@@ -155,10 +155,29 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "step",
-        "type": "uint8"
+        "indexed": true,
+        "internalType": "address",
+        "name": "by",
+        "type": "address"
+      }
+    ],
+    "name": "ApplicationApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "appId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
       },
       {
         "indexed": true,
@@ -273,62 +292,6 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
-        "internalType": "enum TitleRegistry.Status",
-        "name": "status",
-        "type": "uint8"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "by",
-        "type": "address"
-      }
-    ],
-    "name": "StatusChanged",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "appId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "recordId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "step",
-        "type": "uint8"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "by",
-        "type": "address"
-      }
-    ],
-    "name": "StepApproved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "recordId",
-        "type": "uint256"
-      },
-      {
         "indexed": true,
         "internalType": "uint256",
         "name": "tokenId",
@@ -342,31 +305,6 @@
       }
     ],
     "name": "TitleMinted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "recordId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      }
-    ],
-    "name": "TitleTransferred",
     "type": "event"
   },
   {
@@ -392,6 +330,124 @@
       }
     ],
     "name": "Transfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "by",
+        "type": "address"
+      }
+    ],
+    "name": "TransferApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
+      }
+    ],
+    "name": "TransferCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "by",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "name": "TransferRejected",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "TransferRequested",
     "type": "event"
   },
   {
@@ -503,6 +559,20 @@
     "constant": true
   },
   {
+    "inputs": [],
+    "name": "feeLedger",
+    "outputs": [
+      {
+        "internalType": "contract IFeeLedger",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -569,6 +639,26 @@
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "openTransferOf",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -817,6 +907,19 @@
   {
     "inputs": [
       {
+        "internalType": "contract IFeeLedger",
+        "name": "ledger",
+        "type": "address"
+      }
+    ],
+    "name": "setFeeLedger",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "string",
@@ -844,6 +947,16 @@
             "type": "string"
           },
           {
+            "internalType": "string",
+            "name": "planNumber",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "gpsAddress",
+            "type": "string"
+          },
+          {
             "internalType": "uint32",
             "name": "acresX100",
             "type": "uint32"
@@ -863,11 +976,6 @@
               {
                 "internalType": "string",
                 "name": "docType",
-                "type": "string"
-              },
-              {
-                "internalType": "string",
-                "name": "name",
                 "type": "string"
               },
               {
@@ -905,7 +1013,7 @@
         "type": "uint256"
       }
     ],
-    "name": "approveSurvey",
+    "name": "approveApplication",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -916,37 +1024,6 @@
         "internalType": "uint256",
         "name": "appId",
         "type": "uint256"
-      }
-    ],
-    "name": "approveLegal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "appId",
-        "type": "uint256"
-      }
-    ],
-    "name": "finalise",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "appId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint8",
-        "name": "step",
-        "type": "uint8"
       },
       {
         "internalType": "string",
@@ -967,12 +1044,31 @@
         "type": "uint256"
       },
       {
-        "internalType": "enum TitleRegistry.Status",
-        "name": "status",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       }
     ],
-    "name": "setStatus",
+    "name": "requestTransfer",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelTransfer",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -981,16 +1077,29 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "recordId",
+        "name": "transferId",
+        "type": "uint256"
+      }
+    ],
+    "name": "approveTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "transferId",
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
       }
     ],
-    "name": "agentTransfer",
+    "name": "rejectTransfer",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1047,6 +1156,16 @@
             "type": "string"
           },
           {
+            "internalType": "string",
+            "name": "planNumber",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "gpsAddress",
+            "type": "string"
+          },
+          {
             "internalType": "uint32",
             "name": "acresX100",
             "type": "uint32"
@@ -1065,6 +1184,11 @@
             "internalType": "uint256",
             "name": "tokenId",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "registeredAt",
+            "type": "uint64"
           },
           {
             "internalType": "uint64",
@@ -1124,11 +1248,6 @@
             "type": "string"
           },
           {
-            "internalType": "string",
-            "name": "name",
-            "type": "string"
-          },
-          {
             "internalType": "bytes32",
             "name": "hash",
             "type": "bytes32"
@@ -1137,6 +1256,26 @@
         "internalType": "struct TitleRegistry.Doc[]",
         "name": "",
         "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "recordId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ownerHistory",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
       }
     ],
     "stateMutability": "view",
@@ -1205,85 +1344,24 @@
             "type": "uint64"
           },
           {
-            "components": [
-              {
-                "internalType": "enum TitleRegistry.StepStatus",
-                "name": "status",
-                "type": "uint8"
-              },
-              {
-                "internalType": "address",
-                "name": "by",
-                "type": "address"
-              },
-              {
-                "internalType": "uint64",
-                "name": "at",
-                "type": "uint64"
-              },
-              {
-                "internalType": "string",
-                "name": "reason",
-                "type": "string"
-              }
-            ],
-            "internalType": "struct TitleRegistry.Step",
-            "name": "survey",
-            "type": "tuple"
+            "internalType": "enum TitleRegistry.Decision",
+            "name": "decision",
+            "type": "uint8"
           },
           {
-            "components": [
-              {
-                "internalType": "enum TitleRegistry.StepStatus",
-                "name": "status",
-                "type": "uint8"
-              },
-              {
-                "internalType": "address",
-                "name": "by",
-                "type": "address"
-              },
-              {
-                "internalType": "uint64",
-                "name": "at",
-                "type": "uint64"
-              },
-              {
-                "internalType": "string",
-                "name": "reason",
-                "type": "string"
-              }
-            ],
-            "internalType": "struct TitleRegistry.Step",
-            "name": "legal",
-            "type": "tuple"
+            "internalType": "address",
+            "name": "decidedBy",
+            "type": "address"
           },
           {
-            "components": [
-              {
-                "internalType": "enum TitleRegistry.StepStatus",
-                "name": "status",
-                "type": "uint8"
-              },
-              {
-                "internalType": "address",
-                "name": "by",
-                "type": "address"
-              },
-              {
-                "internalType": "uint64",
-                "name": "at",
-                "type": "uint64"
-              },
-              {
-                "internalType": "string",
-                "name": "reason",
-                "type": "string"
-              }
-            ],
-            "internalType": "struct TitleRegistry.Step",
-            "name": "registrar",
-            "type": "tuple"
+            "internalType": "uint64",
+            "name": "decidedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "string",
+            "name": "reason",
+            "type": "string"
           }
         ],
         "internalType": "struct TitleRegistry.Application",
@@ -1296,19 +1374,75 @@
     "constant": true
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "transferCount",
+    "outputs": [
       {
         "internalType": "uint256",
-        "name": "appId",
+        "name": "",
         "type": "uint256"
       }
     ],
-    "name": "currentStep",
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "transferId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTransfer",
     "outputs": [
       {
-        "internalType": "uint8",
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "recordId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "requestedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "enum TitleRegistry.Decision",
+            "name": "decision",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "decidedBy",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "decidedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "string",
+            "name": "reason",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TitleRegistry.TransferRequest",
         "name": "",
-        "type": "uint8"
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
