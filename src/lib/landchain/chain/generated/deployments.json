@@ -1,12 +1,12 @@
 {
   "1337": {
     "network": "development",
-    "startBlock": 0,
-    "deployedAt": "2026-11-19T08:39:57.585Z",
+    "startBlock": 98,
+    "deployedAt": "2026-11-19T08:47:18.278Z",
     "contracts": {
-      "LandAccessControl": "0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab",
-      "IdentityRegistry": "0x5b1869D9A4C187F2EAa108f3062412ecf0526b24",
-      "TitleRegistry": "0xCfEB869F69431e42cdB54A4F4f105C19C080A601"
+      "LandAccessControl": "0xFF6049B87215476aBf744eaA3a476cBAd46fB1cA",
+      "IdentityRegistry": "0xA586074FA4Fe3E546A132a16238abe37951D41fE",
+      "TitleRegistry": "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A"
     }
   }
 }
