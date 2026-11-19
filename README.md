@@ -46,37 +46,92 @@ src/lib/landchain/store.ts            the only door to the data
 
 TanStack Start (React 19, TanStack Router and Query), TypeScript, Vite, Tailwind CSS 4, Radix UI, web3.js v4.
 
-## Run locally
+## Run the whole project
 
-Requires [Node.js](https://nodejs.org) 20 or newer (or [Bun](https://bun.sh)).
+Clone both repos:
 
-```sh
-git clone https://github.com/ProjectBlockchainFall26/landchain-web.git
-cd landchain-web
-git checkout jerome
-npm install        # or: bun install
-npm run dev        # or: bun run dev
+```bash
+git clone https://github.com/ProjectBlockchainFall26/landchain-contracts.git
+git clone https://github.com/ProjectBlockchainFall26/landchain-web.git landchain-web-main
+cd landchain-web-main && git checkout jerome
 ```
 
-Open the URL Vite prints, usually http://localhost:5173.
+You need **Node.js 20+** and both repos cloned **side by side** in one folder:
 
-### With the local chain (default)
-
-Clone [landchain-contracts](https://github.com/ProjectBlockchainFall26/landchain-contracts) next to this folder, then:
-
-```sh
-# in landchain-contracts
-npm install
-npm run chain          # terminal 1: Ganache on 127.0.0.1:7545 (leave running)
-npm run setup:local    # terminal 2: deploy + seed the demo world
-
-# in this folder
-npm run contracts:sync # copy ABIs and addresses (CONTRACTS_DIR=… if the folder is elsewhere)
-npm run dev
+```
+ProjectBlockchain/
+├─ landchain-contracts/
+└─ landchain-web-main/     (the landchain-web repo)
 ```
 
-Sign in with one of the demo accounts on the login page, or connect MetaMask (add network: RPC
-`http://127.0.0.1:7545`, chain id 1337, and import a Ganache private key printed by `npm run chain`).
+The project runs in **three terminals**: the blockchain, the setup, and the web app.
+
+### First time only
+
+```bash
+cd landchain-contracts && npm install
+cd ../landchain-web-main && npm install
+```
+
+### Start everything from scratch (recommended before a demo)
+
+```bash
+# terminal 1, in landchain-contracts: stop any running chain (Ctrl+C), then
+npm run chain:fresh          # empty local blockchain on 127.0.0.1:7545. Leave this running.
+
+# terminal 2, in landchain-contracts (wait until terminal 1 says "RPC Listening on 127.0.0.1:7545")
+npm run setup:local          # deploy the 4 contracts + seed the demo data. Wait for "Seeded."
+
+# terminal 2 again, in landchain-web-main (only after "Seeded.")
+npm run contracts:sync       # copy the new contract addresses and ABIs into the web app
+
+# terminal 3, in landchain-web-main
+npm run dev                  # open the URL it prints, usually http://localhost:5173
+```
+
+The two middle steps can be one command: `npm run setup:all` in `landchain-contracts` runs `setup:local`, then
+`contracts:sync` in the web app, in the right order.
+
+Then hard-refresh the browser (**Cmd+Shift+R**) and pick a demo account on the login page. No wallet is needed on
+the local chain.
+
+### Which chain command?
+
+| Command | What happens when you stop it |
+|---|---|
+| `npm run chain:fresh` | Everything is lost. Run `setup:local` + `contracts:sync` again after every restart. Best for demos: a clean start every time. |
+| `npm run chain` | Saved in `landchain-contracts/.ganache-db/`. Next time, just run `npm run chain` and `npm run dev`; no setup needed. |
+
+### When to run setup again
+
+- After `chain:fresh` (every time).
+- After changing any contract in `contracts/`.
+- After pulling contract changes from GitHub.
+- When the app says "This chain doesn't have the current LandChain contracts".
+
+### Troubleshooting
+
+| You see | Do this |
+|---|---|
+| "Can't reach http://127.0.0.1:7545. Is the chain running?" | Start terminal 1 (`npm run chain:fresh` or `npm run chain`). |
+| "This chain doesn't have the current LandChain contracts" / "No demo accounts found" | The web app has old addresses. Run `npm run setup:all` in `landchain-contracts`, then Cmd+Shift+R. |
+| `contracts:sync` says "Synced 3 ABIs" | You synced before setup finished. Run `contracts:sync` again (it should say 4 ABIs). |
+| "This version of µWS is not compatible with your Node.js build" | Harmless warning from Ganache on newer Node. Ignore it, or use Node 20. |
+| Port 7545 already in use | Another chain is running (maybe the Ganache desktop app). Close it, or `lsof -i :7545` and stop that process. |
+| MetaMask errors after a fresh chain | MetaMask → Settings → Advanced → Clear activity tab data. Network: RPC `http://127.0.0.1:7545`, chain ID `1337`. |
+
+### Tests
+
+```bash
+# landchain-contracts, with a chain running
+npm run contracts:test       # 25 Truffle tests
+
+# landchain-web-main, with the seeded chain running
+npm run test:e2e             # 5 end-to-end tests through the app's own functions
+```
+
+Running `contracts:test` doesn't touch your saved addresses. Running `setup:local` on a different chain does:
+run `setup:all` on your own chain afterwards.
 
 ## Scripts
 

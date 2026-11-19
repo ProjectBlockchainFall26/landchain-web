@@ -95,14 +95,14 @@ lib/landchain/
 
 ## 4. How to run it
 
-```bash
-# landchain-contracts
-npm install
-npm run chain          # terminal 1: Ganache on 127.0.0.1:7545, chain id 1337. Keeps data in .ganache-db/
-npm run setup:all      # terminal 2: deploy + seed + sync the web app (only after a fresh chain or a contract change)
+Full steps and troubleshooting: the **Run the whole project** section of either repo's README. In short:
 
-# landchain-web
-npm install
+```bash
+# terminal 1, in landchain-contracts
+npm run chain:fresh          # leave running
+# terminal 2, in landchain-contracts
+npm run setup:all            # deploy + seed + sync the web app
+# terminal 3, in landchain-web-main
 npm run dev
 ```
 
