@@ -114,7 +114,15 @@ function LandMap() {
                     <div key={k as string} className="flex justify-between px-4 py-2.5"><dt className="text-muted-foreground">{k}</dt><dd className="font-semibold">{v}</dd></div>
                   ))}
                 </dl>
-                <div className="p-3"><Button asChild className="w-full"><Link to="/register"><Plus className="size-4" />Register a parcel</Link></Button></div>
+                <div className="p-3">
+                  {me.kind === "citizen" ? (
+                    <Button asChild className="w-full"><Link to="/register"><Plus className="size-4" />Register a parcel</Link></Button>
+                  ) : me.kind === "officer" ? (
+                    <Button asChild className="w-full"><Link to="/review">Open Review Queue</Link></Button>
+                  ) : (
+                    <Button asChild variant="outline" className="w-full"><Link to="/verify">Verify a title</Link></Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

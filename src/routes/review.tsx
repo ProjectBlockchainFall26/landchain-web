@@ -33,13 +33,24 @@ function Review() {
   const has = (r: string) => me.roles.includes(r as never);
   const [app, setApp] = useState<Application>();
   const [trf, setTrf] = useState<TransferRequest>();
+  if (me.kind !== "officer") {
+    return (
+      <Shell title="Review Queue">
+        <div className="mx-auto max-w-md rounded-xl border bg-card p-6 text-center">
+          <p className="font-medium">Lands Commission staff only.</p>
+          <p className="mt-1 text-sm text-muted-foreground">The review queue is only available to Lands Commission officers.</p>
+          <Button asChild className="mt-4"><Link to={me.kind === "public" ? "/verify" : "/"}>{me.kind === "public" ? "Verify a title" : "Back to Land Map"}</Link></Button>
+        </div>
+      </Shell>
+    );
+  }
   const hint = (r: string) => (has(r) ? null : <span className="text-xs text-muted-foreground">Only the {r.toLowerCase()} can act</span>);
   const name = (id: string) => account(s, id)?.name ?? id;
 
   return (
     <Shell title="Review Queue">
       <p className="mb-4 text-sm text-muted-foreground">
-        Acting as <b className="text-foreground">{me.name}</b>{me.kind === "officer" ? ` · ${me.roles.join(", ")}` : ""}. Everyone can see the queue; only the matching role can act, and the smart contract checks that too.
+        Acting as <b className="text-foreground">{me.name}</b> · {me.roles.join(", ")}. Each role can act only on its own items, and the smart contract checks that too.
       </p>
       <div className="space-y-4">
         <Card title="Identity requests" badge={q.identities.length} right="Identity officer">
