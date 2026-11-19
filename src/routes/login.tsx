@@ -83,7 +83,7 @@ function ChainLogin() {
                 <div key={label} className="mt-2">
                   <div className="px-1.5 pb-1 text-muted-foreground">{label}</div>
                   {list.map((a) => (
-                    <button key={a.id} type="button" onClick={() => { signInAs(a.id); navigate({ to: "/", replace: true }); }}
+                    <button key={a.id} type="button" onClick={() => { signInAs(a.id); navigate({ to: a.kind === "officer" ? "/review" : "/", replace: true }); }}
                       className="flex w-full justify-between rounded px-1.5 py-1 text-left hover:bg-muted">
                       <span>{a.name}</span><Mono>{a.kind === "officer" ? a.roles.join(", ") : a.id}</Mono>
                     </button>

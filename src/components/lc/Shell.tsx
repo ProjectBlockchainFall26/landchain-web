@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMe, useChain, switchAccount, signOut, connectWallet, reloadChain } from "@/lib/landchain/store";
+import type { Account } from "@/lib/landchain/types";
 import { hasMetaMask } from "@/lib/landchain/chain/client";
 import { getParcel } from "@/lib/landchain/engine";
 import { fmtDate, blockNo } from "@/lib/landchain/format";
@@ -13,20 +14,39 @@ import { useEnquiries } from "@/lib/landchain/enquiries";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-const NAV = [
+interface NavItem {
+  to: "/" | "/parcels" | "/register" | "/review" | "/identity" | "/verify" | "/activity" | "/assumptions";
+  label: string;
+  icon: typeof MapIcon;
+  badge?: boolean;
+  kinds?: readonly Account["kind"][];
+}
+
+interface NavGroup {
+  group: string;
+  items: readonly NavItem[];
+}
+
+const NAV: readonly NavGroup[] = [
   { group: "Land", items: [
     { to: "/", label: "Land Map", icon: MapIcon },
-    { to: "/parcels", label: "My Parcels", icon: LandPlot },
-    { to: "/register", label: "Register Land", icon: Plus },
+    { to: "/parcels", label: "My Parcels", icon: LandPlot, kinds: ["citizen"] },
+    { to: "/register", label: "Register Land", icon: Plus, kinds: ["citizen"] },
   ] },
-  { group: "Lands Commission", items: [{ to: "/review", label: "Review Queue", icon: Check, badge: true }] },
-  { group: "Account", items: [{ to: "/identity", label: "Identity", icon: User }] },
+  { group: "Lands Commission", items: [{ to: "/review", label: "Review Queue", icon: Check, badge: true, kinds: ["officer"] }] },
+  { group: "Account", items: [{ to: "/identity", label: "Identity", icon: User, kinds: ["citizen"] }] },
   { group: "Records", items: [
     { to: "/verify", label: "Verify a Title", icon: ShieldCheck },
     { to: "/activity", label: "Activity Log", icon: Activity },
     { to: "/assumptions", label: "Assumptions", icon: Info },
   ] },
-] as const;
+];
+
+function navFor(kind: Account["kind"]) {
+  return NAV
+    .map((g) => ({ group: g.group, items: g.items.filter((it) => !it.kinds || it.kinds.includes(kind)) }))
+    .filter((g) => g.items.length > 0);
+}
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
@@ -40,7 +60,8 @@ export function Logo({ compact }: { compact?: boolean }) {
 function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onToggle?: () => void; onNavigate?: () => void }) {
   const { s, me } = useMe();
   const path = useRouterState({ select: (r) => r.location.pathname });
-  const queueCount = pendingCountFor(s, null);
+  const queueCount = pendingCountFor(s, me);
+  const groups = navFor(me.kind);
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 py-4">
@@ -52,7 +73,7 @@ function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onTo
         )}
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
-        {NAV.map((g) => (
+        {groups.map((g) => (
           <div key={g.group}>
             {!collapsed && <div className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{g.group}</div>}
             {g.items.map((it) => {
@@ -63,7 +84,7 @@ function Sidebar({ collapsed, onToggle, onNavigate }: { collapsed: boolean; onTo
                     active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground hover:bg-muted")}>
                   <it.icon className="size-4 shrink-0" />
                   {!collapsed && <span className="flex-1">{it.label}</span>}
-                  {!collapsed && "badge" in it && queueCount > 0 && (
+                  {!collapsed && it.badge && queueCount > 0 && (
                     <span className="grid size-5 place-items-center rounded-full bg-bad text-[11px] font-semibold text-primary-foreground">{queueCount}</span>
                   )}
                 </Link>
@@ -193,12 +214,24 @@ export function Shell({ title, children, full }: { title: string; children: Reac
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const { ready, signedIn } = useChain();
+  const { me } = useMe();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
   const open = path.startsWith("/verify") || path.startsWith("/title/") || path.startsWith("/assumptions");
   useEffect(() => {
-    if (ready && !signedIn && !open) navigate({ to: "/login", replace: true });
-  }, [ready, signedIn, open, navigate]);
+    if (!ready) return;
+    if (!signedIn && !open) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+    if (me.kind === "officer" && (path.startsWith("/parcels") || path.startsWith("/register") || path.startsWith("/identity"))) {
+      navigate({ to: "/review", replace: true });
+    } else if (me.kind === "citizen" && path.startsWith("/review")) {
+      navigate({ to: "/", replace: true });
+    } else if (me.kind === "public" && (path.startsWith("/review") || path.startsWith("/parcels") || path.startsWith("/register") || path.startsWith("/identity"))) {
+      navigate({ to: "/verify", replace: true });
+    }
+  }, [ready, signedIn, open, me.kind, path, navigate]);
   return (
     <div className="flex min-h-screen w-full">
       <aside className={cn("sticky top-0 hidden h-screen shrink-0 border-r bg-sidebar lg:block", collapsed ? "w-16" : "w-58")}>
@@ -218,7 +251,7 @@ export function Shell({ title, children, full }: { title: string; children: Reac
           <button className="lg:hidden" onClick={() => setMobile(true)} aria-label="Open menu"><Menu className="size-5" /></button>
           <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
           <GlobalSearch />
-          <Notifications />
+          {me.kind !== "public" && <Notifications />}
           <AccountSwitcher />
         </header>
         <main className={cn("flex-1", full ? "p-3 lg:p-6" : "p-4 lg:p-6")}>{children}</main>
