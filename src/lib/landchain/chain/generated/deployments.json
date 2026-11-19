@@ -1,0 +1,13 @@
+{
+  "1337": {
+    "network": "development",
+    "startBlock": 143,
+    "deployedAt": "2026-11-19T09:18:21.985Z",
+    "contracts": {
+      "LandAccessControl": "0xCeeFD27e0542aFA926B87d23936c79c276A48277",
+      "IdentityRegistry": "0x47a2Db5D68751EeAdFBC44851E84AcDB4F7299Cc",
+      "TitleRegistry": "0x988B6CFBf3332FF98FFBdED665b1F53a61f92612",
+      "FeeLedger": "0xeea2Fc1D255Fd28aA15c6c2324Ad40B03267f9c5"
+    }
+  }
+}
