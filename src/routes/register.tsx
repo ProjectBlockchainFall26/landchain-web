@@ -18,7 +18,7 @@ export const Route = createFileRoute("/register")({
       { title: "Register Land · LandChain Ghana" },
       { name: "description", content: "Draw your parcel boundary and apply for a digital land title." },
       { property: "og:title", content: "Register Land · LandChain Ghana" },
-      { property: "og:description", content: "Apply for a LandChain title: draw the boundary, add documents, track sign-offs." },
+      { property: "og:description", content: "Apply for a LandChain title: draw the boundary, add documents, get it registered on the blockchain." },
     ],
   }),
   component: Register,
@@ -66,11 +66,11 @@ function Register() {
         <div className="mx-auto max-w-lg rounded-xl border bg-card p-6">
           <CheckCircle2 className="size-8 text-ok" />
           <h2 className="mt-2 text-lg font-semibold">Application {done} submitted</h2>
-          <p className="mt-1 text-sm text-muted-foreground">It's now <b>Pending</b>. No title exists yet — it's created only after three sign-offs:</p>
+          <p className="mt-1 text-sm text-muted-foreground">It's on the blockchain as <b>Pending</b>. No title exists yet:</p>
           <ol className="mt-3 space-y-2 text-sm">
-            <li>1. <b>Surveyor</b> checks the boundary pillars on site</li>
-            <li>2. <b>Lawyer</b> reviews the indenture and search report</li>
-            <li>3. <b>Registrar</b> finalises and mints your digital title</li>
+            <li>1. The <b>Lands Commission registrar</b> checks your boundary and documents</li>
+            <li>2. On approval, the contract <b>mints your title as an NFT</b> to your wallet</li>
+            <li>3. From then on the record is locked: no one can edit it or move it without your request and the registrar's approval</li>
           </ol>
           <div className="mt-5 flex gap-2">
             <Button asChild><Link to="/title/$parcelId" params={{ parcelId: done }}>Track progress</Link></Button>

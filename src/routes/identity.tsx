@@ -6,13 +6,13 @@ import { Mono, Pill } from "@/components/lc/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { hashCard, landchain, MODE, setMyName, useMe } from "@/lib/landchain/store";
+import { hashCard, landchain, setMyName, useMe } from "@/lib/landchain/store";
 
 export const Route = createFileRoute("/identity")({
   head: () => ({
     meta: [
       { title: "Verify your identity · LandChain Ghana" },
-      { name: "description", content: "Link your Ghana Card privately to register and buy land on LandChain." },
+      { name: "description", content: "Link your Ghana Card privately to register land on LandChain." },
       { property: "og:title", content: "Verify your identity · LandChain Ghana" },
       { property: "og:description", content: "Your Ghana Card is hashed — never stored or shown." },
     ],
@@ -24,7 +24,7 @@ function Identity() {
   const { me } = useMe();
   const [card, setCard] = useState("");
   const [name, setName] = useState("");
-  const unnamed = MODE === "chain" && me.kind === "citizen" && me.name.startsWith("Citizen ");
+  const unnamed = me.kind === "citizen" && me.name.startsWith("Citizen ");
   const [cit, setCit] = useState<"citizen" | "non-citizen">("citizen");
   const valid = /^GHA-\d{9}-\d$/i.test(card.trim());
   const tone = me.identity === "verified" ? "ok" : me.identity === "pending" ? "warn" : me.identity === "rejected" ? "bad" : "neutral";
@@ -38,7 +38,7 @@ function Identity() {
           <Pill tone={tone}>{label}</Pill>
         </div>
         {me.kind !== "citizen" ? <p className="mt-4 text-sm text-muted-foreground">Only citizen accounts need identity verification.</p>
-          : me.identity === "verified" ? <p className="mt-4 text-sm">You're verified. You can register and buy land.</p>
+          : me.identity === "verified" ? <p className="mt-4 text-sm">You're verified. You can register land and receive title transfers.</p>
           : me.identity === "pending" ? <p className="mt-4 text-sm">Waiting for an identity officer to review your profile.</p>
           : (
             <form className="mt-5 space-y-4" onSubmit={async (e) => {

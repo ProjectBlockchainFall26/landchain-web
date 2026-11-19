@@ -1,36 +1,35 @@
 # LandChain Ghana (web)
 
-Front end for LandChain, a blockchain land-titling system for Ghana. Each registered parcel becomes a unique digital title tied to its surveyed GPS boundary. A title is only created after a surveyor, a lawyer and a Lands Commission registrar have signed off. Ownership changes only through escrow-backed sales that the registrar approves.
+Front end for LandChain, a blockchain land register for Ghana. The owner of a parcel (bought or inherited off the platform) applies with their verified Ghana Card, the parcel's GPS boundary and document hashes. When the Lands Commission registrar approves, the smart contract mints the title as an ERC-721 NFT. From then on the record can't be edited, and ownership changes only when the owner requests a transfer **and** the registrar approves it.
 
-The app reads and writes the **LandChain smart contracts** ([landchain-contracts](https://github.com/ProjectBlockchainFall26/landchain-contracts)): every action is a real transaction, and every screen is built from contract state and events. It walks through the full life of a parcel: apply, survey, legal review, registrar approval, minted title, listing, purchase, escrow and approved transfer. An in-browser demo engine with the same rules is still available for offline demos (`VITE_LANDCHAIN_MODE=demo`).
+The app reads and writes the **LandChain smart contracts** ([landchain-contracts](https://github.com/ProjectBlockchainFall26/landchain-contracts)): every action is a real transaction, and every screen is built from contract state and events. It walks through the full life of a parcel: verify identity, apply, registrar approval, minted title, transfer request and approved transfer.
 
 ## Views
 
-- **Citizen:** register land, track approvals, view title health, list a parcel for sale, buy a listed parcel, check balance.
-- **Lands Commission:** a review queue for the Registrar, Surveyor, Lawyer, Identity officer and Judge roles. Each role can act only on its own items.
+- **Citizen:** verify a Ghana Card, register land, track the application, see the on-chain history of a title, request a transfer of ownership.
+- **Lands Commission:** a review queue. The identity officer verifies Ghana Cards; the registrar approves registrations and transfers. Each role can act only on its own items, and the contract enforces it.
 - **Public:** look up and verify any title, read only, no login.
 
-Routes live in `src/routes` (`index`, `login`, `parcels`, `register`, `review`, `verify`, `balance`, `activity`, `identity`, `title.$parcelId`).
+Routes live in `src/routes` (`index`, `login`, `parcels`, `register`, `review`, `verify`, `activity`, `identity`, `title.$parcelId`).
 
 ## How the blockchain is wired in
 
 ```
 screens (src/routes, src/components/lc)
-   │  read: useChain() / useMe()        write: landchain.buyListed(id), landchain.finalise(app) …
+   │  read: useChain() / useMe()        write: landchain.submitApplication(…), landchain.approveTransfer(id) …
    ▼
-src/lib/landchain/store.ts            the only door to the data; picks chain or demo mode
+src/lib/landchain/store.ts            the only door to the data
    ├─ chain/client.ts                 web3.js v4: contracts from ABIs + addresses, signing, revert messages
    ├─ chain/snapshot.ts               builds the app state from view functions + contract events
-   ├─ chain/config.ts                 chain id, RPC, units (tGHS 18 decimals, micro-degree coordinates)
+   ├─ chain/config.ts                 chain id, RPC, micro-degree coordinates
    ├─ chain/generated/                ABIs, deployed addresses, demo labels (npm run contracts:sync)
-   └─ engine.ts + seed.ts             demo mode only
+   └─ engine.ts                       lookups + the boundary overlap pre-check
 ```
 
-- **Writes.** Each `landchain.*` call becomes one or more contract calls. The app first does a free `eth_call`, so a
-  refused action shows the contract's own `require` message (e.g. "Only the surveyor can sign this step") without
-  spending gas, then sends the transaction and shows its block and hash. Buying is two transactions:
-  `TestCedi.approve(Marketplace, price)` then `Marketplace.buyListed(recordId)`.
-- **Reads.** Parcels, applications, sales, disputes and balances come from view functions; ownership history, the
+- **Writes.** Each `landchain.*` call is one contract call. The app first does a free `eth_call`, so a refused
+  action shows the contract's own `require` message (e.g. "Only the owner can transfer this title") without
+  spending gas, then sends the transaction and shows its block and hash.
+- **Reads.** Parcels, applications, transfer requests and owner lists come from view functions; the history, the
   activity log and notifications come from contract events. The app polls for new blocks every 3 seconds.
 - **Who signs (hybrid).** Citizens sign with MetaMask. On a local chain, the seeded demo accounts (citizens and Lands
   Commission officers) are Ganache's unlocked accounts, so a demo needs no wallet. Officer accounts stand in for the
@@ -75,8 +74,6 @@ npm run dev
 Sign in with one of the demo accounts on the login page, or connect MetaMask (add network: RPC
 `http://127.0.0.1:7545`, chain id 1337, and import a Ganache private key printed by `npm run chain`).
 
-Without a chain: put `VITE_LANDCHAIN_MODE=demo` in `.env.local`.
-
 ## Scripts
 
 | Command | Description |
@@ -87,5 +84,5 @@ Without a chain: put `VITE_LANDCHAIN_MODE=demo` in `.env.local`.
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format with Prettier |
 | `npm test` | Run tests once (Vitest) |
-| `npm run test:e2e` | Run the full parcel lifecycle against the running local chain |
+| `npm run test:e2e` | Run the full parcel lifecycle (identity → register → transfer) against the running local chain |
 | `npm run contracts:sync` | Copy ABIs, addresses and demo labels from `../landchain-contracts` |

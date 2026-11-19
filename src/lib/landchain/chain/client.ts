@@ -9,19 +9,13 @@
 import Web3, { type Contract, type ContractAbi } from "web3";
 import IdentityRegistryAbi from "./generated/abi/IdentityRegistry.json";
 import TitleRegistryAbi from "./generated/abi/TitleRegistry.json";
-import MarketplaceAbi from "./generated/abi/Marketplace.json";
-import DisputeResolutionAbi from "./generated/abi/DisputeResolution.json";
-import TestCediAbi from "./generated/abi/TestCedi.json";
 import LandAccessControlAbi from "./generated/abi/LandAccessControl.json";
 import { CHAIN_ID, chainName, deployment, IS_LOCAL, RPC_URL, type ContractName } from "./config";
 
 const ABIS: Record<ContractName, ContractAbi> = {
   LandAccessControl: LandAccessControlAbi as ContractAbi,
   IdentityRegistry: IdentityRegistryAbi as ContractAbi,
-  TestCedi: TestCediAbi as ContractAbi,
   TitleRegistry: TitleRegistryAbi as ContractAbi,
-  Marketplace: MarketplaceAbi as ContractAbi,
-  DisputeResolution: DisputeResolutionAbi as ContractAbi,
 };
 export const CONTRACT_NAMES = Object.keys(ABIS) as ContractName[];
 
@@ -157,7 +151,7 @@ export async function send(contract: ContractName, methodName: string, args: unk
   let gas: bigint;
   try {
     await fn.call({ from: addr });
-    // Estimate explicitly (+20%): without a gas limit, multi-contract calls like approveSale run out of gas.
+    // Estimate explicitly (+20%) so calls that mint or move an NFT never run out of gas.
     gas = ((await fn.estimateGas({ from: addr })) * 12n) / 10n;
   } catch (e) {
     throw new RevertError(revertReason(e));
@@ -182,8 +176,8 @@ async function signerFor(address: string): Promise<{ web3: Web3; c: Contracts }>
 
 /*
  * Officer actions and the future backend (hybrid signing).
- * When land-backend is live, officer calls (verifyProfile, approveSurvey, approveLegal, finalise,
- * rejectApplication, approveSale, rejectSale, resolveDispute, freezeTitle) will POST to
+ * When land-backend is live, officer calls (verifyProfile, rejectProfile, approveApplication,
+ * rejectApplication, approveTransfer, rejectTransfer) will POST to
  *   {VITE_API_URL}/api/v1/chain/officer-actions  { contract, method, args }  with the officer's auth token,
  * and Django signs with the role wallet held in its environment. The UI keeps calling the same
  * landchain.* functions; only the routing in store.ts changes.

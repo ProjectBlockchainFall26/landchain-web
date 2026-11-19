@@ -13,9 +13,9 @@ export const Route = createFileRoute("/parcels")({
   head: () => ({
     meta: [
       { title: "My Parcels · LandChain Ghana" },
-      { name: "description", content: "See the health of your land titles, list parcels for sale and track escrow." },
+      { name: "description", content: "Your registered land titles and their on-chain history." },
       { property: "og:title", content: "My Parcels · LandChain Ghana" },
-      { property: "og:description", content: "Your land titles, their verification, sales and ownership history." },
+      { property: "og:description", content: "Your land titles, their registration and ownership history." },
     ],
   }),
   component: MyParcels,
@@ -57,7 +57,7 @@ function MyParcels() {
           <div className="mb-4 flex flex-wrap gap-2">
             {mine.map((x) => (
               <button key={x.id} onClick={() => setSel(x.id)} className={cn("flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm", x.id === p.id ? "border-primary bg-accent font-medium text-accent-foreground" : "bg-card")}>
-                <Dot tone={x.status === "for_sale" ? "ok" : STATUS_TONE[x.status]} />{x.id}
+                <Dot tone={STATUS_TONE[x.status]} />{x.id}
               </button>
             ))}
           </div>

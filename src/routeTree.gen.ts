@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
-import { Route as BalanceRouteImport } from './routes/balance'
 import { Route as IdentityRouteImport } from './routes/identity'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParcelsRouteImport } from './routes/parcels'
@@ -28,11 +27,6 @@ const IndexRoute = IndexRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BalanceRoute = BalanceRouteImport.update({
-  id: '/balance',
-  path: '/balance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdentityRoute = IdentityRouteImport.update({
@@ -74,7 +68,6 @@ const TitleParcelIdRoute = TitleParcelIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -86,7 +79,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -99,7 +91,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/balance': typeof BalanceRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -113,7 +104,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
-    | '/balance'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -125,7 +115,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
-    | '/balance'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -137,7 +126,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/activity'
-    | '/balance'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -150,7 +138,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
-  BalanceRoute: typeof BalanceRoute
   IdentityRoute: typeof IdentityRoute
   LoginRoute: typeof LoginRoute
   ParcelsRoute: typeof ParcelsRoute
@@ -174,13 +161,6 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/balance': {
-      id: '/balance'
-      path: '/balance'
-      fullPath: '/balance'
-      preLoaderRoute: typeof BalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/identity': {
@@ -238,7 +218,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
-  BalanceRoute: BalanceRoute,
   IdentityRoute: IdentityRoute,
   LoginRoute: LoginRoute,
   ParcelsRoute: ParcelsRoute,
