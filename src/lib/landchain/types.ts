@@ -7,6 +7,7 @@ export interface Account {
   id: string; // public ID, e.g. GH-7d4e894d
   name: string;
   address?: string | undefined; // wallet address
+  email?: string | undefined; // backend mode: the Supabase sign-in email (never on chain)
   kind: "citizen" | "officer" | "public";
   roles: Role[];
   identity: IdentityStatus;
@@ -15,11 +16,16 @@ export interface Account {
 }
 
 /** Mirrors TitleRegistry.Status. */
-export type ParcelStatus = "pending" | "registered" | "transfer_pending" | "rejected";
-export type Interest = "Allodial" | "Customary freehold" | "Common-law freehold" | "Leasehold";
+export type ParcelStatus =
+  "pending" | "registered" | "transfer_pending" | "rejected";
+export type Interest =
+  "Allodial" | "Customary freehold" | "Common-law freehold" | "Leasehold";
 
 /** On chain: type + SHA-256 fingerprint only. The file and its name live in the Lands Commission's vault. */
-export interface Doc { type: string; hash: string }
+export interface Doc {
+  type: string;
+  hash: string;
+}
 
 export interface Parcel {
   id: string;
@@ -66,7 +72,8 @@ export interface TransferRequest {
   reason?: string | undefined;
 }
 
-export type FeeKind = "Official search" | "Stamp duty" | "First registration" | "Transfer";
+export type FeeKind =
+  "Official search" | "Stamp duty" | "First registration" | "Transfer";
 export interface Payment {
   id: string; // PAY-n
   parcelId: string;
@@ -81,8 +88,22 @@ export interface Payment {
   transferId?: string | undefined;
 }
 
-export type HistoryType = "Application" | "Registration" | "Transfer requested" | "Transfer" | "Transfer rejected" | "Transfer cancelled" | "Rejected";
-export interface HistoryEvent { parcelId: string; type: HistoryType; text: string; at: number; block: number; tx: string }
+export type HistoryType =
+  | "Application"
+  | "Registration"
+  | "Transfer requested"
+  | "Transfer"
+  | "Transfer rejected"
+  | "Transfer cancelled"
+  | "Rejected";
+export interface HistoryEvent {
+  parcelId: string;
+  type: HistoryType;
+  text: string;
+  at: number;
+  block: number;
+  tx: string;
+}
 
 export interface Tx {
   hash: string;
@@ -96,7 +117,11 @@ export interface Tx {
   error?: string | undefined;
 }
 
-export interface Notification { to: string; text: string; at: number }
+export interface Notification {
+  to: string;
+  text: string;
+  at: number;
+}
 
 export interface ChainState {
   block: number;
