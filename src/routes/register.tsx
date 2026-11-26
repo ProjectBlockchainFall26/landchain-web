@@ -25,7 +25,12 @@ import {
 } from "@/components/ui/select";
 import { landchain, sha256Hex, useMe } from "@/lib/landchain/store";
 import { validateBoundary } from "@/lib/landchain/engine";
-import { areaAcres, type LatLng } from "@/lib/landchain/geo";
+import {
+  areaAcres,
+  parsePillars,
+  SAMPLE_PILLARS_CSV,
+  type LatLng,
+} from "@/lib/landchain/geo";
 import type { Interest } from "@/lib/landchain/types";
 import { putFile } from "@/lib/landchain/vault";
 import { API_MODE } from "@/lib/landchain/api/config";
@@ -41,13 +46,13 @@ export const Route = createFileRoute("/register")({
       {
         name: "description",
         content:
-          "Draw your parcel boundary and apply for a digital land title.",
+          "Upload your surveyor's coordinates and documents and apply for a digital land title.",
       },
       { property: "og:title", content: "Register Land · LandChain Ghana" },
       {
         property: "og:description",
         content:
-          "Apply for a LandChain title: draw the boundary, add the site plan details and documents, get it registered on the blockchain.",
+          "Apply for a LandChain title: upload the surveyor's coordinates and documents, get it registered on the blockchain.",
       },
     ],
   }),
@@ -104,6 +109,7 @@ function Register() {
     return `GA-BRK-${String(n).padStart(4, "0")}`;
   }, [s.parcels]);
   const [pts, setPts] = useState<LatLng[]>([]);
+  const [pillarFile, setPillarFile] = useState<string>();
   const [pid, setPid] = useState("");
   const [interest, setInterest] = useState<Interest>("Leasehold");
   const [holder, setHolder] = useState("Berekuso Stool");
@@ -220,28 +226,47 @@ function Register() {
                 <span className="text-sm text-ok">{area.toFixed(2)} acres</span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Click each corner pillar from your surveyor's site plan on the
-                map. Overlaps with neighbours are checked before submitting.
+                Upload the corner-pillar coordinates from your surveyor (one
+                pillar per line: latitude, longitude). The boundary appears on
+                the map and is checked against your neighbours.
               </p>
+              <Input
+                className="mt-2"
+                type="file"
+                accept=".csv,.txt,text/csv,text/plain"
+                aria-label="Surveyor's coordinates file"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    setPts(parsePillars(await f.text()));
+                    setPillarFile(f.name);
+                  } catch (err) {
+                    setPts([]);
+                    setPillarFile(undefined);
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : "Couldn't read that file",
+                    );
+                  }
+                }}
+              />
+              {pillarFile && pts.length > 0 && (
+                <p className="mt-2 text-sm text-ok">
+                  {pts.length} corner pillars read from {pillarFile}
+                </p>
+              )}
               {boundaryErr && (
                 <p className="mt-2 text-sm text-bad">{boundaryErr}</p>
               )}
-              <div className="mt-3 flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPts([])}>
-                  <Plus className="size-4" />
-                  Redraw boundary
-                </Button>
-                {pts.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPts(pts.slice(0, -1))}
-                  >
-                    <Undo2 className="size-4" />
-                    Undo
-                  </Button>
-                )}
-              </div>
+              <a
+                className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                href={`data:text/csv;charset=utf-8,${encodeURIComponent(SAMPLE_PILLARS_CSV)}`}
+                download="sample-pillars.csv"
+              >
+                Download a sample coordinates file (demo)
+              </a>
             </div>
             <div className="space-y-3 rounded-xl border border-ok/40 p-3">
               <div className="flex items-center gap-2 font-medium">
@@ -455,7 +480,6 @@ function Register() {
           <ParcelMap
             parcels={s.parcels.filter((p) => p.status !== "rejected")}
             draft={pts}
-            onMapClick={(ll) => setPts([...pts, ll])}
             defaultSatellite
             showToggle="dropdown"
             overlay={

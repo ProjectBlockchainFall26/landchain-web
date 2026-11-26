@@ -98,7 +98,7 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
   });
 
   it("only the registrar can approve a registration", async () => {
-    await as("Abena Sarpong"); // identity officer, not registrar
+    await as("Kofi Mensah"); // a citizen, not the registrar
     const app = stateNow().applications.find(
       (a) => a.parcelId === "GA-BRK-0014",
     )!;
@@ -114,7 +114,7 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
       (await landchain.submitIdentity(hashCard("GHA-700000006-6"), "citizen"))
         .ok,
     ).toBe(true);
-    await as("Abena Sarpong");
+    await as("Lands Commission");
     expect((await landchain.verifyIdentity(efua.id, true)).ok).toBe(true);
 
     await as("Efua Mensah");
