@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
-import { Route as AssumptionsRouteImport } from './routes/assumptions'
 import { Route as IdentityRouteImport } from './routes/identity'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParcelsRouteImport } from './routes/parcels'
@@ -30,11 +29,6 @@ const IndexRoute = IndexRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssumptionsRoute = AssumptionsRouteImport.update({
-  id: '/assumptions',
-  path: '/assumptions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdentityRoute = IdentityRouteImport.update({
@@ -86,7 +80,6 @@ const TitleParcelIdRoute = TitleParcelIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -100,7 +93,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -115,7 +107,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/assumptions': typeof AssumptionsRoute
   '/identity': typeof IdentityRoute
   '/login': typeof LoginRoute
   '/parcels': typeof ParcelsRoute
@@ -131,7 +122,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
-    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -145,7 +135,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
-    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -159,7 +148,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/activity'
-    | '/assumptions'
     | '/identity'
     | '/login'
     | '/parcels'
@@ -174,7 +162,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
-  AssumptionsRoute: typeof AssumptionsRoute
   IdentityRoute: typeof IdentityRoute
   LoginRoute: typeof LoginRoute
   ParcelsRoute: typeof ParcelsRoute
@@ -200,13 +187,6 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assumptions': {
-      id: '/assumptions'
-      path: '/assumptions'
-      fullPath: '/assumptions'
-      preLoaderRoute: typeof AssumptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/identity': {
@@ -278,7 +258,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
-  AssumptionsRoute: AssumptionsRoute,
   IdentityRoute: IdentityRoute,
   LoginRoute: LoginRoute,
   ParcelsRoute: ParcelsRoute,

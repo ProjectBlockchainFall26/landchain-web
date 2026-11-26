@@ -185,7 +185,7 @@ function ChainLogin() {
             className="mt-6 w-full"
             onClick={async () => {
               await signInAs("public");
-              navigate({ to: "/verify" });
+              navigate({ to: "/", search: { view: "list" } });
             }}
           >
             <Eye className="size-4" />
@@ -381,7 +381,7 @@ function ApiLogin() {
             className="mt-6 w-full"
             onClick={async () => {
               await signInAs("public");
-              navigate({ to: "/verify" });
+              navigate({ to: "/", search: { view: "list" } });
             }}
           >
             <Eye className="size-4" />

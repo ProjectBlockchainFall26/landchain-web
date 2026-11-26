@@ -36,8 +36,8 @@ function TitleRecord() {
       {!p ? (
         <div className="rounded-xl border bg-card p-6 text-center">
           <p className="font-medium">No parcel called {parcelId}.</p>
-          <Link to="/verify" className="mt-2 inline-block text-sm text-primary">
-            Search titles
+          <Link to="/" search={{ view: "list" }} className="mt-2 inline-block text-sm text-primary">
+            Browse the register
           </Link>
         </div>
       ) : (
