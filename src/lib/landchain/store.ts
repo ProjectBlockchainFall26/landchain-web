@@ -34,7 +34,12 @@ import type { FeeKind } from "./types";
 import type { Enquiry } from "./enquiries";
 import { API_MODE, API_URL } from "./api/config";
 import { loadApiState } from "./api/snapshot";
-import { backend, linkWallet, setFullName } from "./api/actions";
+import {
+  backend,
+  linkWallet,
+  lookupPublicIdApi,
+  setFullName,
+} from "./api/actions";
 import { api, errorMessage, takeRejectedSignIn } from "./api/http";
 import { signInDemo, signInWithPassword, signOutApi, signUp } from "./api/auth";
 
@@ -673,6 +678,33 @@ const apiLandchain: typeof chainLandchain & {
 };
 
 export const landchain = API_MODE ? apiLandchain : chainLandchain;
+
+/** A public ID looks like GH-9c2a41d0 (the first 4 bytes of the wallet's hash, see IdentityRegistry.publicIdOf). */
+export const PUBLIC_ID_RE = /^GH-[0-9a-f]{8}$/i;
+export const normalPublicId = (raw: string) => {
+  const t = raw.trim();
+  return /^gh-/i.test(t) ? `GH-${t.slice(3).toLowerCase()}` : t;
+};
+export interface PersonLookup {
+  exists: boolean;
+  verified: boolean;
+  isYou: boolean;
+}
+/** Look up the person behind a public ID, for a transfer: on chain from the identity list, through the API otherwise. */
+export async function lookupPerson(publicId: string): Promise<PersonLookup> {
+  const pid = normalPublicId(publicId);
+  if (API_MODE) {
+    const r = await lookupPublicIdApi(pid);
+    return { exists: r.exists, verified: r.verified, isYou: r.is_you };
+  }
+  const { state: s, current } = get();
+  const a = s.accounts.find((x) => x.id === pid && x.kind !== "public");
+  return {
+    exists: !!a,
+    verified: a?.identity === "verified",
+    isYou: current === pid,
+  };
+}
 export const apiWrites = apiLandchain;
 
 export async function sha256Hex(data: ArrayBuffer | string) {

@@ -11,11 +11,9 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
-  ShieldCheck,
   User,
   X,
   LandPlot,
-  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -46,7 +44,7 @@ const NAV = [
   {
     group: "Land",
     items: [
-      { to: "/", label: "Land Map", icon: MapIcon },
+      { to: "/", label: "Land Register", icon: MapIcon },
       { to: "/parcels", label: "My Parcels", icon: LandPlot },
       { to: "/register", label: "Register Land", icon: Plus },
     ],
@@ -61,11 +59,7 @@ const NAV = [
   },
   {
     group: "Records",
-    items: [
-      { to: "/verify", label: "Verify a Title", icon: ShieldCheck },
-      { to: "/activity", label: "Activity Log", icon: Activity },
-      { to: "/assumptions", label: "Assumptions", icon: Info },
-    ],
+    items: [{ to: "/activity", label: "Activity Log", icon: Activity }],
   },
 ] as const;
 
@@ -93,6 +87,9 @@ function Sidebar({
 }) {
   const { s, me } = useMe();
   const path = useRouterState({ select: (r) => r.location.pathname });
+  const listView = useRouterState({
+    select: (r) => (r.location.search as { view?: string }).view === "list",
+  });
   const queueCount = pendingCountFor(s, null);
   return (
     <div className="flex h-full flex-col">
@@ -379,11 +376,15 @@ export function Shell({
   const [mobile, setMobile] = useState(false);
   const { ready, signedIn } = useChain();
   const path = useRouterState({ select: (r) => r.location.pathname });
+  const listView = useRouterState({
+    select: (r) => (r.location.search as { view?: string }).view === "list",
+  });
   const navigate = useNavigate();
+  // Public pages: the register's list view, title records and certificates need no sign-in.
   const open =
-    path.startsWith("/verify") ||
+    (path === "/" && listView) ||
     path.startsWith("/title/") ||
-    path.startsWith("/assumptions");
+    path.startsWith("/certificate/");
   useEffect(() => {
     if (ready && !signedIn && !open) navigate({ to: "/login", replace: true });
   }, [ready, signedIn, open, navigate]);
@@ -391,7 +392,7 @@ export function Shell({
     <div className="flex min-h-screen w-full">
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 border-r bg-sidebar lg:block",
+          "sticky top-0 hidden h-screen shrink-0 border-r bg-sidebar lg:block print:hidden",
           collapsed ? "w-16" : "w-58",
         )}
       >
@@ -419,7 +420,7 @@ export function Shell({
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-15 items-center gap-3 border-b bg-card px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-15 print:hidden items-center gap-3 border-b bg-card px-4 lg:px-6">
           <button
             className="lg:hidden"
             onClick={() => setMobile(true)}

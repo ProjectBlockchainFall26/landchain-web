@@ -15,6 +15,7 @@ import { Blob as NodeBlob, File as NodeFile } from "node:buffer";
 import { createHash } from "node:crypto";
 import {
   apiWrites,
+  lookupPerson,
   chainSnapshot,
   hashCard,
   landchain,
@@ -200,6 +201,10 @@ describe.runIf(run)("LandChain against the deployed contracts", () => {
     expect(parcel(id).owners).toEqual([efua.id]);
 
     await as("Efua Mensah");
+    // Transfer by public ID: the dialog looks the buyer up before sending.
+    expect(await lookupPerson(byName("Ama Owusu").id)).toEqual({ exists: true, verified: true, isYou: false });
+    expect((await lookupPerson("GH-00000000")).exists).toBe(false);
+    expect((await lookupPerson(efua.id)).isYou).toBe(true);
     expect(
       (await landchain.requestTransfer(id, byName("Ama Owusu").id)).ok,
     ).toBe(true);

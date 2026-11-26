@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -26,15 +26,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { landchain, sha256Hex, useMe } from "@/lib/landchain/store";
+import {
+  landchain,
+  lookupPerson,
+  normalPublicId,
+  PUBLIC_ID_RE,
+  sha256Hex,
+  useMe,
+  type PersonLookup,
+} from "@/lib/landchain/store";
 import {
   account,
   applicationFor,
@@ -670,39 +671,105 @@ function TransferDialog({
 }) {
   const { s, me } = useMe();
   const [to, setTo] = useState("");
-  const people = s.accounts.filter(
-    (a) => a.kind === "citizen" && a.id !== me.id,
+  const [found, setFound] = useState<PersonLookup & { id: string }>();
+  const [checking, setChecking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pid = normalPublicId(to);
+  const wellFormed = PUBLIC_ID_RE.test(pid);
+  const known = s.accounts.filter(
+    (a) => a.kind === "citizen" && a.id !== me.id && a.identity === "verified",
   );
+  const result = found && found.id === pid ? found : undefined;
+  useEffect(() => {
+    if (!wellFormed) return;
+    let live = true;
+    setChecking(true);
+    lookupPerson(pid)
+      .then((r) => live && setFound({ ...r, id: pid }))
+      .catch(
+        () =>
+          live &&
+          setFound({ exists: false, verified: false, isYou: false, id: pid }),
+      )
+      .finally(() => live && setChecking(false));
+    return () => {
+      live = false;
+    };
+  }, [pid, wellFormed]);
+  const problem = !to.trim()
+    ? undefined
+    : !wellFormed
+      ? "A public ID looks like GH-9c2a41d0"
+      : !result
+        ? undefined
+        : result.isYou
+          ? "That's your own public ID"
+          : !result.exists
+            ? "No one on the register has this public ID"
+            : !result.verified
+              ? "This person hasn't verified their Ghana Card yet, so they can't receive a title"
+              : undefined;
+  const ready = !!result && result.exists && result.verified && !result.isYou;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Transfer {parcel.id}</DialogTitle>
           <DialogDescription>
-            For a sale or gift already agreed off the platform. The registrar
-            checks the indenture, records the transfer fee and approves.
+            For a sale or gift already agreed off the platform. Ask the buyer
+            for their LandChain public ID; the registrar checks the indenture,
+            records the transfer fee and approves.
           </DialogDescription>
         </DialogHeader>
-        <label className="text-sm">
-          New owner (must have a verified Ghana Card)
+        <label className="text-sm" htmlFor="transfer-to">
+          New owner's public ID (they must have a verified Ghana Card)
         </label>
-        <Select value={to} onValueChange={setTo}>
-          <SelectTrigger>
-            <SelectValue placeholder="Choose a person" />
-          </SelectTrigger>
-          <SelectContent>
-            {people.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name} · {a.id}
-                {a.identity !== "verified" ? " (not verified)" : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Input
+          id="transfer-to"
+          placeholder="GH-9c2a41d0"
+          value={to}
+          autoComplete="off"
+          spellCheck={false}
+          className="font-mono"
+          onChange={(e) => setTo(e.target.value)}
+        />
+        <p className="min-h-5 text-sm" role="status">
+          {problem ? (
+            <span className="text-bad">{problem}</span>
+          ) : checking ? (
+            <span className="text-muted-foreground">
+              Checking the register…
+            </span>
+          ) : ready ? (
+            <span className="text-ok">
+              Verified person on the register
+              {s.accounts.find((a) => a.id === pid)?.name
+                ? ` · ${s.accounts.find((a) => a.id === pid)!.name}`
+                : ""}
+            </span>
+          ) : null}
+        </p>
+        {known.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            <div className="mb-1">People you know on LandChain</div>
+            <div className="flex flex-wrap gap-1.5">
+              {known.slice(0, 8).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setTo(a.id)}
+                  className="rounded-full border px-2 py-0.5 hover:bg-muted"
+                >
+                  {a.name} · <span className="font-mono">{a.id}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <ol className="space-y-1 rounded-lg bg-muted p-3 text-sm">
           <li>
             1. You send <Mono>requestTransfer</Mono>. The title is marked
-            "transfer pending".
+            "transfer pending", so it can't be sold to anyone else meanwhile.
           </li>
           <li>
             2. The registrar records the transfer fee receipt in{" "}
@@ -715,13 +782,18 @@ function TransferDialog({
         </ol>
         <DialogFooter>
           <Button
-            disabled={!to}
+            disabled={!ready || busy}
             onClick={async () => {
-              const r = await landchain.requestTransfer(parcel.id, to);
-              if (r.ok) onOpenChange(false);
+              setBusy(true);
+              const r = await landchain.requestTransfer(parcel.id, pid);
+              setBusy(false);
+              if (r.ok) {
+                setTo("");
+                onOpenChange(false);
+              }
             }}
           >
-            Request transfer
+            {busy ? "Sending…" : "Request transfer"}
           </Button>
         </DialogFooter>
       </DialogContent>
