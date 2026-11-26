@@ -391,7 +391,7 @@ export function Shell({
     <div className="flex min-h-screen w-full">
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 border-r bg-sidebar lg:block",
+          "sticky top-0 hidden h-screen shrink-0 border-r bg-sidebar lg:block print:hidden",
           collapsed ? "w-16" : "w-58",
         )}
       >
@@ -419,7 +419,7 @@ export function Shell({
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-15 items-center gap-3 border-b bg-card px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-15 print:hidden items-center gap-3 border-b bg-card px-4 lg:px-6">
           <button
             className="lg:hidden"
             onClick={() => setMobile(true)}

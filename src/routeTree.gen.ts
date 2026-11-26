@@ -18,6 +18,7 @@ import { Route as ParcelsRouteImport } from './routes/parcels'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as CertificateParcelIdRouteImport } from './routes/certificate.$parcelId'
 import { Route as ReceiptParcelIdRouteImport } from './routes/receipt.$parcelId'
 import { Route as TitleParcelIdRouteImport } from './routes/title.$parcelId'
 
@@ -66,6 +67,11 @@ const VerifyRoute = VerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CertificateParcelIdRoute = CertificateParcelIdRouteImport.update({
+  id: '/certificate/$parcelId',
+  path: '/certificate/$parcelId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceiptParcelIdRoute = ReceiptParcelIdRouteImport.update({
   id: '/receipt/$parcelId',
   path: '/receipt/$parcelId',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/certificate/$parcelId': typeof CertificateParcelIdRoute
   '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/certificate/$parcelId': typeof CertificateParcelIdRoute
   '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/review': typeof ReviewRoute
   '/verify': typeof VerifyRoute
+  '/certificate/$parcelId': typeof CertificateParcelIdRoute
   '/receipt/$parcelId': typeof ReceiptParcelIdRoute
   '/title/$parcelId': typeof TitleParcelIdRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/review'
     | '/verify'
+    | '/certificate/$parcelId'
     | '/receipt/$parcelId'
     | '/title/$parcelId'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/review'
     | '/verify'
+    | '/certificate/$parcelId'
     | '/receipt/$parcelId'
     | '/title/$parcelId'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/review'
     | '/verify'
+    | '/certificate/$parcelId'
     | '/receipt/$parcelId'
     | '/title/$parcelId'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ReviewRoute: typeof ReviewRoute
   VerifyRoute: typeof VerifyRoute
+  CertificateParcelIdRoute: typeof CertificateParcelIdRoute
   ReceiptParcelIdRoute: typeof ReceiptParcelIdRoute
   TitleParcelIdRoute: typeof TitleParcelIdRoute
 }
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/certificate/$parcelId': {
+      id: '/certificate/$parcelId'
+      path: '/certificate/$parcelId'
+      fullPath: '/certificate/$parcelId'
+      preLoaderRoute: typeof CertificateParcelIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/receipt/$parcelId': {
       id: '/receipt/$parcelId'
       path: '/receipt/$parcelId'
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ReviewRoute: ReviewRoute,
   VerifyRoute: VerifyRoute,
+  CertificateParcelIdRoute: CertificateParcelIdRoute,
   ReceiptParcelIdRoute: ReceiptParcelIdRoute,
   TitleParcelIdRoute: TitleParcelIdRoute,
 }
