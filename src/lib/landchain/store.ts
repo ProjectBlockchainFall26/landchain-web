@@ -35,7 +35,7 @@ import type { Enquiry } from "./enquiries";
 import { API_MODE, API_URL } from "./api/config";
 import { loadApiState } from "./api/snapshot";
 import { backend, linkWallet, setFullName } from "./api/actions";
-import { api, errorMessage } from "./api/http";
+import { api, errorMessage, takeRejectedSignIn } from "./api/http";
 import { signInDemo, signInWithPassword, signOutApi, signUp } from "./api/auth";
 
 const ACCT_KEY = `landchain-account:${CHAIN_ID}`;
@@ -243,6 +243,8 @@ async function apiSignInAs(id: string) {
   try {
     await signInDemo(a.email);
     await refresh(true);
+    const refused = takeRejectedSignIn();
+    if (refused) throw new Error(refused);
   } catch (e) {
     toast.error("Couldn't sign in", { description: errorMessage(e) });
   }
@@ -277,6 +279,8 @@ export async function signInWithEmail(
   try {
     await signInWithPassword(email, password);
     await refresh(true);
+    const refused = takeRejectedSignIn();
+    if (refused) return { ok: false, error: refused };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: errorMessage(e) };
